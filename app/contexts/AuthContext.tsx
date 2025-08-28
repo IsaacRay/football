@@ -22,22 +22,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        console.log('AuthContext: Getting session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('AuthContext: Session result:', { session, error });
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      } catch (error) {
+        console.error('AuthContext: Error getting session:', error);
+        setLoading(false);
+      }
     };
 
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('AuthContext: Auth state changed:', { event, session });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
         if (event === 'SIGNED_IN' && session?.user) {
-          await createUserProfile(session.user);
+          console.log('AuthContext: User signed in, skipping profile creation');
+          // Skip profile creation for now since we don't have a profiles table
+          // await createUserProfile(session.user);
         }
       }
     );
