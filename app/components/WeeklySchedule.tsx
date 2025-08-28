@@ -33,7 +33,7 @@ export default function WeeklySchedule({ games, weekNumber }: WeeklyScheduleProp
           <div
             key={game.id}
             className={`border rounded-lg p-4 ${
-              game.isComplete ? 'bg-gray-50' : 'bg-white'
+              game.is_complete ? 'bg-gray-50' : 'bg-white'
             }`}
           >
             <div className="flex justify-between items-center">
