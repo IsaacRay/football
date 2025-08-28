@@ -185,7 +185,8 @@ export async function getDefaultPool(): Promise<Pool | null> {
     .single();
   
   if (error) {
-    return null;
+    console.error('Error fetching default pool:', error);
+    throw new Error(`Failed to fetch default pool: ${error.message}`);
   }
   
   return data;
@@ -194,7 +195,9 @@ export async function getDefaultPool(): Promise<Pool | null> {
 export async function createPlayerForCurrentUser(poolId: string, displayName?: string): Promise<Player | null> {
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) return null;
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
   
   const { data, error } = await supabase
     .from('players')
@@ -209,7 +212,8 @@ export async function createPlayerForCurrentUser(poolId: string, displayName?: s
     .single();
   
   if (error) {
-    return null;
+    console.error('Error creating player:', error);
+    throw new Error(`Failed to create player: ${error.message}`);
   }
   
   return data;

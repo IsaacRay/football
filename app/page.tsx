@@ -48,10 +48,14 @@ export default function Home() {
       // Get current week based on date
       const week = getCurrentNFLWeek();
       setCurrentWeek(week);
+      console.log('Current NFL week:', week);
 
       // Get default pool
       const defaultPool = await getDefaultPool();
+      console.log('Default pool:', defaultPool);
       if (!defaultPool) {
+        console.error('No default pool found');
+        alert('No active pool found. Please contact the administrator.');
         setDataLoading(false);
         return;
       }
@@ -59,23 +63,35 @@ export default function Home() {
 
       // Get current user's player record
       let userPlayer = await getCurrentUserPlayer(defaultPool.id);
+      console.log('User player:', userPlayer);
       
       // If user doesn't have a player record, create one
       if (!userPlayer) {
+        console.log('Creating new player for user');
         userPlayer = await createPlayerForCurrentUser(defaultPool.id);
+        console.log('Created player:', userPlayer);
+        if (!userPlayer) {
+          console.error('Failed to create player');
+          alert('Failed to create player record. Please try again.');
+          setDataLoading(false);
+          return;
+        }
       }
       setCurrentPlayer(userPlayer);
 
       // Get all players in the pool
       const allPlayers = await getPlayersByPool(defaultPool.id);
+      console.log('All players:', allPlayers);
       setPlayers(allPlayers);
 
       // Get current week's games
       const weekGames = await getGamesByWeek(week);
+      console.log('Week games:', weekGames);
       setGames(weekGames);
 
     } catch (error) {
-      // Handle error silently
+      console.error('Error loading data:', error);
+      alert(`Failed to load pool data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDataLoading(false);
     }
