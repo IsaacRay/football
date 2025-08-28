@@ -21,30 +21,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    const getSession = async () => {
+    let isMounted = true;
+    
+    const initAuth = async () => {
       try {
-        console.log('AuthContext: Getting session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('AuthContext: Session result:', { session, error });
+        console.log('AuthContext: Initializing auth...');
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        // Set timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+          console.log('AuthContext: Auth timeout - setting loading to false');
+          if (isMounted) {
+            setLoading(false);
+          }
+        }, 5000);
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('AuthContext: Session retrieved:', { session: !!session, error });
+
+        clearTimeout(timeout);
+
+        if (isMounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
       } catch (error) {
-        console.error('AuthContext: Error getting session:', error);
-        setLoading(false);
+        console.error('AuthContext: Auth error:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    // Set a timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      console.log('AuthContext: Timeout reached, stopping loading state');
-      setLoading(false);
-    }, 10000); // 10 second timeout
-
-    getSession().finally(() => {
-      clearTimeout(timeout);
-    });
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -61,7 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const createUserProfile = async (user: User) => {
