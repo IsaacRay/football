@@ -36,7 +36,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    getSession();
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log('AuthContext: Timeout reached, stopping loading state');
+      setLoading(false);
+    }, 10000); // 10 second timeout
+
+    getSession().finally(() => {
+      clearTimeout(timeout);
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
