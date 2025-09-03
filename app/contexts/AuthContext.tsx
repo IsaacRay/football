@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '../utils/supabase/client';
+import { isSafariOnIOS, getSafeOrigin, safariStorageSupport, handleSafariAuthRedirect } from '../utils/safari-auth-fix';
 
 interface AuthContextType {
   user: User | null;
@@ -27,13 +28,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('AuthContext: Initializing auth...');
         
-        // Set timeout to prevent infinite loading
+        // Check Safari-specific issues
+        if (isSafariOnIOS()) {
+          console.log('AuthContext: Safari on iOS detected');
+          handleSafariAuthRedirect();
+          
+          if (!safariStorageSupport()) {
+            console.warn('AuthContext: Safari private mode or localStorage blocked');
+            // Continue anyway, Supabase might work with memory storage
+          }
+        }
+        
+        // Set timeout to prevent infinite loading (shorter for Safari)
+        const timeoutDuration = isSafariOnIOS() ? 3000 : 5000;
         const timeout = setTimeout(() => {
           console.log('AuthContext: Auth timeout - setting loading to false');
           if (isMounted) {
             setLoading(false);
           }
-        }, 5000);
+        }, timeoutDuration);
 
         const { data: { session }, error } = await supabase.auth.getSession();
         console.log('AuthContext: Session retrieved:', { session: !!session, error });
@@ -110,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${getSafeOrigin()}/auth/callback`,
       },
     });
 

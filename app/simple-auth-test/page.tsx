@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
+import { isSafariOnIOS, safariStorageSupport } from '../utils/safari-auth-fix';
 
 export default function SimpleAuthTest() {
   const [status, setStatus] = useState('Starting...');
@@ -12,6 +13,13 @@ export default function SimpleAuthTest() {
     
     const testAuth = async () => {
       try {
+        // Check Safari first
+        if (isSafariOnIOS()) {
+          setStatus('🍎 Safari on iOS detected - checking compatibility...');
+          const storageOK = safariStorageSupport();
+          setStatus(`🍎 Safari detected - Storage: ${storageOK ? '✅' : '❌ (Private Mode?)'}`);
+        }
+        
         setStatus('Creating Supabase client...');
         const supabase = createClient();
         

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { getSafeOrigin, isSafariOnIOS } from '../utils/safari-auth-fix';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,12 +15,23 @@ export default function Login() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/');
-        return;
+      try {
+        if (isSafariOnIOS()) {
+          console.log('Login: Safari on iOS detected');
+        }
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Login: Session check:', { hasSession: !!session, error });
+        
+        if (session) {
+          router.push('/');
+          return;
+        }
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error('Login: Error checking user:', error);
+        setCheckingAuth(false);
       }
-      setCheckingAuth(false);
     };
 
     checkUser();
@@ -34,7 +46,7 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
+          emailRedirectTo: `${getSafeOrigin()}/auth/callback`,
         },
       });
 
