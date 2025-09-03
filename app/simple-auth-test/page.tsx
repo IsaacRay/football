@@ -26,7 +26,7 @@ export default function SimpleAuthTest() {
         setStatus('Getting session (5s timeout)...');
         
         // Race between getSession and timeout
-        const timeoutPromise = new Promise((resolve) => {
+        const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
           setTimeout(() => resolve({ timedOut: true }), 5000);
         });
         
