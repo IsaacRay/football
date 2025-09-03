@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import Navigation from './components/Navigation';
 import PoolRules from './components/PoolRules';
 import Leaderboard from './components/Leaderboard';
@@ -22,6 +23,7 @@ import type { Pool, Player, Game, Pick } from './lib/supabaseQueries';
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [pool, setPool] = useState<Pool | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
@@ -37,9 +39,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && !user) {
-      window.location.href = '/login';
+      router.push('/login');
     }
-  }, [loading, user]);
+  }, [loading, user, router]);
 
   const loadData = async () => {
     setDataLoading(true);
