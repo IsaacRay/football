@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      return NextResponse.redirect(`https//olneyacresfootball.com/${next}`)
+      return NextResponse.redirect(`https://olneyacresfootball.com/${next}`)
     }
   }
 
