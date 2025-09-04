@@ -49,7 +49,7 @@ export default function AllPicksPage() {
     setDataLoading(true);
     
     try {
-      const week = getCurrentNFLWeek();
+      const week = await getCurrentNFLWeek();
       setCurrentWeek(week);
       
       const [defaultPool, allTeams] = await Promise.all([
