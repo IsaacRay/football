@@ -3,13 +3,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '../utils/supabase/client';
-import { isSafariOnIOS, getSafeOrigin, safariStorageSupport, handleSafariAuthRedirect } from '../utils/safari-auth-fix';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signInWithMagicLink: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -22,128 +20,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const initAuth = async () => {
-      try {
-        console.log('AuthContext: Initializing auth...');
-        
-        // Check Safari-specific issues
-        if (isSafariOnIOS()) {
-          console.log('AuthContext: Safari on iOS detected');
-          handleSafariAuthRedirect();
-          
-          if (!safariStorageSupport()) {
-            console.warn('AuthContext: Safari private mode or localStorage blocked');
-            // Continue anyway, Supabase might work with memory storage
-          }
-        }
-        
-        // Set timeout to prevent infinite loading (shorter for Safari)
-        const timeoutDuration = isSafariOnIOS() ? 3000 : 5000;
-        const timeout = setTimeout(() => {
-          console.log('AuthContext: Auth timeout - setting loading to false');
-          if (isMounted) {
-            setLoading(false);
-          }
-        }, timeoutDuration);
-
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('AuthContext: Session retrieved:', { session: !!session, error });
-
-        clearTimeout(timeout);
-
-        if (isMounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('AuthContext: Auth error:', error);
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state changed:', { event, session });
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('AuthContext: User signed in, skipping profile creation');
-          // Skip profile creation for now since we don't have a profiles table
-          // await createUserProfile(session.user);
-        }
-      }
-    );
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  const createUserProfile = async (user: User) => {
-    try {
-      // First check if profile already exists
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // Profile doesn't exist, create it
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email || '',
-            display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Anonymous',
-          });
-
-        if (insertError) {
-          // Handle profile creation error silently
-        }
-      } else if (error) {
-        // Handle profile check error silently
-      }
-    } catch (error) {
-      // Handle unexpected error silently
-    }
-  };
-
-  const signInWithMagicLink = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${getSafeOrigin()}/auth/callback`,
-      },
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
-    if (error) {
-      throw error;
-    }
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
-    }
+    await supabase.auth.signOut();
   };
 
   const value = {
     user,
     session,
     loading,
-    signInWithMagicLink,
     signOut,
   };
 
