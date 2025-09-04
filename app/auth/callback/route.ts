@@ -11,16 +11,35 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Verify the session was created
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Auth callback: Session established:', !!session)
+      
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development'
+      
+      // Create response with proper redirect
+      let redirectUrl: string
       if (isLocalEnv) {
         // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
+        redirectUrl = `${origin}${next}`
       } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        redirectUrl = `https://${forwardedHost}${next}`
       } else {
-        return NextResponse.redirect(`${origin}${next}`)
+        redirectUrl = `${origin}${next}`
       }
+      
+      const response = NextResponse.redirect(redirectUrl)
+      
+      // Set a temporary cookie to signal successful authentication
+      response.cookies.set('auth-success', 'true', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 5 // expires in 5 seconds
+      })
+      
+      return response
     }
   }
 

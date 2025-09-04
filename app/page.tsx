@@ -30,6 +30,21 @@ export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [currentWeek, setCurrentWeek] = useState(1);
   const [dataLoading, setDataLoading] = useState(true);
+  const [authCheckDelay, setAuthCheckDelay] = useState(true);
+
+  useEffect(() => {
+    // Check for auth-success cookie which indicates we just logged in
+    const hasAuthSuccess = document.cookie.includes('auth-success=true');
+    
+    // If we just authenticated, wait a bit longer for auth state to settle
+    const delay = hasAuthSuccess ? 2000 : 500;
+    
+    const timer = setTimeout(() => {
+      setAuthCheckDelay(false);
+    }, delay);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -38,10 +53,11 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Only redirect after auth check delay and if we're sure there's no user
+    if (!loading && !user && !authCheckDelay) {
       router.push('/login');
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, authCheckDelay]);
 
   const loadData = async () => {
     setDataLoading(true);
@@ -116,13 +132,13 @@ export default function Home() {
     }
   };
 
-  if (loading || dataLoading) {
+  if (loading || dataLoading || authCheckDelay) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">
-            {loading ? 'Authenticating...' : 'Loading pool data...'}
+            {loading || authCheckDelay ? 'Authenticating...' : 'Loading pool data...'}
           </p>
         </div>
       </div>
