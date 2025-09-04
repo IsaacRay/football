@@ -14,28 +14,10 @@ export default function Login() {
   const supabase = createClient();
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        if (isSafariOnIOS()) {
-          console.log('Login: Safari on iOS detected');
-        }
-        
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Login: Session check:', { hasSession: !!session, error });
-        
-        if (session) {
-          router.push('/');
-          return;
-        }
-        setCheckingAuth(false);
-      } catch (error) {
-        console.error('Login: Error checking user:', error);
-        setCheckingAuth(false);
-      }
-    };
-
-    checkUser();
-  }, [router, supabase]);
+    // Remove immediate auth check to prevent race conditions
+    // Let the AuthContext handle session management
+    setCheckingAuth(false);
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

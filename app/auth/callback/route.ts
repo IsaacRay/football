@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 5 // expires in 5 seconds
+        maxAge: 30 // expires in 30 seconds
       })
       
       return response

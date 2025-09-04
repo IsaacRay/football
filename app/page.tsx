@@ -36,14 +36,20 @@ export default function Home() {
     // Check for auth-success cookie which indicates we just logged in
     const hasAuthSuccess = document.cookie.includes('auth-success=true');
     
-    // If we just authenticated, wait a bit longer for auth state to settle
-    const delay = hasAuthSuccess ? 2000 : 500;
-    
-    const timer = setTimeout(() => {
+    if (hasAuthSuccess) {
+      // Clear the cookie after reading it to prevent it being read again
+      document.cookie = 'auth-success=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      
+      // Wait for auth state to settle after successful login
+      const timer = setTimeout(() => {
+        setAuthCheckDelay(false);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // No auth success cookie, proceed normally
       setAuthCheckDelay(false);
-    }, delay);
-    
-    return () => clearTimeout(timer);
+    }
   }, []);
 
   useEffect(() => {
