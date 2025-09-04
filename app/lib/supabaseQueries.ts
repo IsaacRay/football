@@ -237,3 +237,53 @@ export async function getAvailableTeams(playerId: string, excludeWeek?: number):
   // Filter out used teams
   return allTeams.filter(team => !usedTeamIds.includes(team.id));
 }
+
+// Get all picks for all players in a pool
+export async function getAllPicksForPool(poolId: string): Promise<(Pick & { player: Player })[]> {
+  const { data, error } = await supabase
+    .from('picks')
+    .select(`
+      *,
+      player:players!inner(*)
+    `)
+    .eq('player.pool_id', poolId)
+    .order('week_number')
+    .order('player.display_name');
+  
+  if (error) {
+    console.error('Error fetching all picks:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+// Get player with their picks and available teams
+export async function getPlayerWithPicksAndTeams(poolId: string): Promise<{
+  player: Player;
+  picks: Pick[];
+  usedTeamIds: string[];
+  availableTeamIds: string[];
+}[]> {
+  const players = await getPlayersByPool(poolId);
+  const allTeams = await getAllTeams();
+  
+  const playersWithData = await Promise.all(
+    players.map(async (player) => {
+      const picks = await getPicksByPlayer(player.id);
+      const usedTeamIds = picks.map(pick => pick.team_id);
+      const availableTeamIds = allTeams
+        .filter(team => !usedTeamIds.includes(team.id))
+        .map(team => team.id);
+      
+      return {
+        player,
+        picks,
+        usedTeamIds,
+        availableTeamIds
+      };
+    })
+  );
+  
+  return playersWithData;
+}
