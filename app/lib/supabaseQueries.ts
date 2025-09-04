@@ -287,3 +287,33 @@ export async function getPlayerWithPicksAndTeams(poolId: string): Promise<{
   
   return playersWithData;
 }
+
+// Get current NFL week
+export async function getCurrentNFLWeek(): Promise<number> {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  
+  // Get games for current season to determine current week
+  const { data, error } = await supabase
+    .from('games')
+    .select('week_number, game_time')
+    .eq('season', currentYear)
+    .order('week_number')
+    .order('game_time');
+  
+  if (error || !data || data.length === 0) {
+    return 1; // Default to week 1 if no games found
+  }
+  
+  // Find the current week based on game times
+  for (const game of data) {
+    const gameTime = new Date(game.game_time);
+    if (gameTime > now) {
+      return game.week_number;
+    }
+  }
+  
+  // If all games have passed, return the last week
+  const lastGame = data[data.length - 1];
+  return lastGame.week_number;
+}
