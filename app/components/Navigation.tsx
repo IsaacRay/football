@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Navigation() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
+  
+  const isAdmin = user?.email === 'isaacmray1984@gmail.com';
 
   const handleSignOut = async () => {
     try {
@@ -63,6 +65,18 @@ export default function Navigation() {
             >
               All Picks
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  pathname === '/admin'
+                    ? 'bg-blue-700 text-white'
+                    : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+                }`}
+              >
+                Admin
+              </Link>
+            )}
           </nav>
         )}
       </div>

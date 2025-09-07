@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getCurrentNFLWeek } from '../lib/weekCalculator';
-import { getGamesByWeek, getAllTeams, updateGameWinner } from '../lib/supabaseQueries';
-import type { Game, Team } from '../lib/supabaseQueries';
+import { getGamesByWeek, getAllTeams, updateGameWinner, getPlayersByPool, getDefaultPool, getPicksByPlayer, submitPick, updatePick, getExistingPick, getAvailableTeams } from '../lib/supabaseQueries';
+import type { Game, Team, Player, Pool, Pick } from '../lib/supabaseQueries';
+import { createClient } from '../utils/supabase/client';
+import { createUser } from '../actions/admin';
 
 const ADMIN_EMAIL = 'isaacmray1984@gmail.com';
 
@@ -17,6 +19,18 @@ export default function AdminPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'games' | 'users' | 'picks'>('games');
+  const [pool, setPool] = useState<Pool | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserDisplayName, setNewUserDisplayName] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+  const [selectedPickWeek, setSelectedPickWeek] = useState(1);
+  const [selectedPickTeam, setSelectedPickTeam] = useState<string>('');
+  const [addingPick, setAddingPick] = useState(false);
+  const [playerPicks, setPlayerPicks] = useState<Pick[]>([]);
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
 
   useEffect(() => {
     if (!loading) {
@@ -33,7 +47,9 @@ export default function AdminPage() {
       // Set default week to current week
       const currentWeek = getCurrentNFLWeek();
       setSelectedWeek(currentWeek);
+      setSelectedPickWeek(currentWeek);
       loadData(currentWeek);
+      loadPoolAndPlayers();
     }
   }, [user, loading, router]);
 
@@ -50,6 +66,37 @@ export default function AdminPage() {
       // Handle error silently
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const loadPoolAndPlayers = async () => {
+    try {
+      const defaultPool = await getDefaultPool();
+      if (defaultPool) {
+        setPool(defaultPool);
+        const poolPlayers = await getPlayersByPool(defaultPool.id);
+        setPlayers(poolPlayers);
+        if (poolPlayers.length > 0 && !selectedPlayer) {
+          setSelectedPlayer(poolPlayers[0].id);
+          await loadPlayerPicks(poolPlayers[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading pool data:', error);
+    }
+  };
+
+  const loadPlayerPicks = async (playerId: string) => {
+    try {
+      const picks = await getPicksByPlayer(playerId);
+      setPlayerPicks(picks);
+      const available = await getAvailableTeams(playerId);
+      setAvailableTeams(available);
+      if (available.length > 0 && !selectedPickTeam) {
+        setSelectedPickTeam(available[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading player picks:', error);
     }
   };
 
@@ -71,6 +118,69 @@ export default function AdminPage() {
     } finally {
       setSaving(null);
     }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !pool) return;
+    
+    setCreatingUser(true);
+    try {
+      const result = await createUser(newUserEmail, newUserDisplayName, pool.id);
+      
+      if (result.success) {
+        // Reload players
+        await loadPoolAndPlayers();
+        setNewUserEmail('');
+        setNewUserDisplayName('');
+        alert(result.message);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      alert('Error creating user');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleAddPick = async () => {
+    if (!selectedPlayer || !selectedPickTeam) return;
+    
+    setAddingPick(true);
+    try {
+      // Check if pick already exists
+      const existingPick = await getExistingPick(selectedPlayer, selectedPickWeek);
+      
+      let success;
+      if (existingPick) {
+        success = await updatePick(selectedPlayer, selectedPickWeek, selectedPickTeam);
+      } else {
+        success = await submitPick({
+          player_id: selectedPlayer,
+          pool_id: pool!.id,
+          week_number: selectedPickWeek,
+          team_id: selectedPickTeam,
+          is_correct: null
+        });
+      }
+      
+      if (success) {
+        // Reload player picks
+        await loadPlayerPicks(selectedPlayer);
+        alert('Pick added successfully!');
+      } else {
+        alert('Error adding pick');
+      }
+    } catch (error) {
+      alert('Error adding pick');
+    } finally {
+      setAddingPick(false);
+    }
+  };
+
+  const handlePlayerChange = async (playerId: string) => {
+    setSelectedPlayer(playerId);
+    await loadPlayerPicks(playerId);
   };
 
   const getTeamName = (teamId: string) => {
@@ -116,13 +226,42 @@ export default function AdminPage() {
       <div className="bg-red-600 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
           <h1 className="text-4xl font-bold">Admin Panel</h1>
-          <p className="mt-2 text-red-100">Manage Game Results</p>
+          <p className="mt-2 text-red-100">Manage Game Results, Users, and Picks</p>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Week selector */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="border-b">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('games')}
+                className={`px-6 py-3 font-medium ${activeTab === 'games' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Game Results
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-6 py-3 font-medium ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                User Management
+              </button>
+              <button
+                onClick={() => setActiveTab('picks')}
+                className={`px-6 py-3 font-medium ${activeTab === 'picks' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Pick Management
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Game Results Tab */}
+        {activeTab === 'games' && (
+          <>
+            {/* Week selector */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-xl font-bold mb-4">Select Week</h2>
           <select
             value={selectedWeek}
@@ -137,8 +276,8 @@ export default function AdminPage() {
           </select>
         </div>
 
-        {/* Games list */}
-        <div className="bg-white rounded-lg shadow-md">
+            {/* Games list */}
+            <div className="bg-white rounded-lg shadow-md">
           <div className="p-6 border-b">
             <h2 className="text-xl font-bold">Week {selectedWeek} Games</h2>
             <p className="text-gray-600 mt-1">Select the winner for each completed game</p>
@@ -189,8 +328,202 @@ export default function AdminPage() {
                 </div>
               ))
             )}
+            </div>
           </div>
-        </div>
+          </>
+        )}
+
+        {/* User Management Tab */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold">User Management</h2>
+              <p className="text-gray-600 mt-1">Create new users and manage existing players</p>
+            </div>
+            
+            {/* Create User Form */}
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold mb-4">Create New User</h3>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Display Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="displayName"
+                    value={newUserDisplayName}
+                    onChange={(e) => setNewUserDisplayName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <button
+                  onClick={handleCreateUser}
+                  disabled={creatingUser || !newUserEmail}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  {creatingUser ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </div>
+            
+            {/* Existing Players List */}
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Existing Players</h3>
+              <div className="space-y-2">
+                {players.length === 0 ? (
+                  <p className="text-gray-500">No players in the pool</p>
+                ) : (
+                  players.map((player) => (
+                    <div key={player.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{player.display_name}</div>
+                        <div className="text-sm text-gray-500">Lives: {player.lives_remaining}</div>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {player.is_eliminated ? (
+                          <span className="text-red-600 font-medium">Eliminated</span>
+                        ) : (
+                          <span className="text-green-600 font-medium">Active</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pick Management Tab */}
+        {activeTab === 'picks' && (
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold">Pick Management</h2>
+              <p className="text-gray-600 mt-1">Add picks for players</p>
+            </div>
+            
+            {/* Add Pick Form */}
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold mb-4">Add Pick</h3>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="player" className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Player
+                  </label>
+                  <select
+                    id="player"
+                    value={selectedPlayer}
+                    onChange={(e) => handlePlayerChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {players.map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.display_name} (Lives: {player.lives_remaining})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="week" className="block text-sm font-medium text-gray-700 mb-1">
+                    Week
+                  </label>
+                  <select
+                    id="week"
+                    value={selectedPickWeek}
+                    onChange={(e) => setSelectedPickWeek(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
+                      <option key={week} value={week}>
+                        Week {week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="team" className="block text-sm font-medium text-gray-700 mb-1">
+                    Team
+                  </label>
+                  <select
+                    id="team"
+                    value={selectedPickTeam}
+                    onChange={(e) => setSelectedPickTeam(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {availableTeams.length === 0 ? (
+                      <option value="">No available teams</option>
+                    ) : (
+                      availableTeams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} ({team.abbreviation})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <button
+                  onClick={handleAddPick}
+                  disabled={addingPick || !selectedPlayer || !selectedPickTeam}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  {addingPick ? 'Adding...' : 'Add Pick'}
+                </button>
+              </div>
+            </div>
+            
+            {/* Player Picks History */}
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Player Picks History</h3>
+              {selectedPlayer && (
+                <div className="space-y-2">
+                  {playerPicks.length === 0 ? (
+                    <p className="text-gray-500">No picks for this player</p>
+                  ) : (
+                    playerPicks.map((pick) => {
+                      const team = teams.find(t => t.id === pick.team_id);
+                      return (
+                        <div key={pick.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <div className="font-medium">Week {pick.week_number}</div>
+                            <div className="text-sm text-gray-500">
+                              {team ? `${team.name} (${team.abbreviation})` : pick.team_id}
+                            </div>
+                          </div>
+                          <div className="text-sm">
+                            {pick.is_correct === true && (
+                              <span className="text-green-600 font-medium">✓ Correct</span>
+                            )}
+                            {pick.is_correct === false && (
+                              <span className="text-red-600 font-medium">✗ Incorrect</span>
+                            )}
+                            {pick.is_correct === null && (
+                              <span className="text-gray-500">Pending</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="mt-8 text-center">
           <button

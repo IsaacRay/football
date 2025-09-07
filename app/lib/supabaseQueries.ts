@@ -317,3 +317,26 @@ export async function getCurrentNFLWeek(): Promise<number> {
   const lastGame = data[data.length - 1];
   return lastGame.week_number;
 }
+
+// Create a new user with email (Admin function)
+export async function createUserWithEmail(email: string, displayName?: string): Promise<{ success: boolean; message: string; userId?: string }> {
+  try {
+    // First create the auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8),
+    });
+    
+    if (authError) {
+      return { success: false, message: authError.message };
+    }
+    
+    if (!authData.user) {
+      return { success: false, message: 'Failed to create user' };
+    }
+    
+    return { success: true, message: 'User created successfully', userId: authData.user.id };
+  } catch (error) {
+    return { success: false, message: 'An error occurred while creating user' };
+  }
+}
