@@ -2,8 +2,20 @@
 
 import type { Player } from '../lib/supabaseQueries';
 
+interface PlayerWithPickCount extends Player {
+  pick_count: number;
+}
+
 interface LeaderboardProps {
-  players: Player[];
+  players: PlayerWithPickCount[];
+}
+
+function LivesDisplay({ lives }: { lives: number }) {
+  const footballs = [];
+  for (let i = 0; i < lives; i++) {
+    footballs.push(<span key={i} className="text-2xl text-orange-600">🏈</span>);
+  }
+  return <div className="flex justify-center space-x-1">{footballs}</div>;
 }
 
 export default function Leaderboard({ players }: LeaderboardProps) {
@@ -37,20 +49,9 @@ export default function Leaderboard({ players }: LeaderboardProps) {
                   </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <div className="flex justify-center space-x-1">
-                    {[...Array(3)].map((_, i) => (
-                      <span
-                        key={i}
-                        className={`text-2xl ${
-                          i < player.lives_remaining ? 'text-orange-600' : 'text-gray-300'
-                        }`}
-                      >
-                        🏈
-                      </span>
-                    ))}
-                  </div>
+                  <LivesDisplay lives={player.lives_remaining} />
                 </td>
-                <td className="py-3 px-3 text-center">-</td>
+                <td className="py-3 px-3 text-center">{player.pick_count}</td>
                 <td className="py-3 px-3 text-center">
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium ${

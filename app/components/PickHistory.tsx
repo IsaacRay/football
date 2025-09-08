@@ -26,7 +26,7 @@ export default function PickHistory({ player }: PickHistoryProps) {
         setPicks(playerPicks);
         setTeams(allTeams);
       } catch (error) {
-        // Handle error silently
+        console.error('Error loading pick history:', error);
       } finally {
         setLoading(false);
       }

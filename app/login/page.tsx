@@ -1,34 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '../utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const supabase = createClient();
+  const router = useRouter();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `https://olneyacresfootball.com/auth/callback`,
-      },
-    });
+    try {
+      const response = await fetch('/api/auth/send-magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
 
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage('Check your email for the magic link!');
-      setEmail('');
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage('Check your email for the magic link!');
+        setEmail('');
+      } else {
+        setMessage(data.error || 'Failed to send login link');
+      }
+    } catch (error) {
+      setMessage('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (

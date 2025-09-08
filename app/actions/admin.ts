@@ -1,24 +1,19 @@
 'use server';
 
 import { createClient } from '../utils/supabase/server';
-import { v4 as uuidv4 } from 'uuid';
-
-const ADMIN_EMAIL = 'isaacmray1984@gmail.com';
+import { getUser, isAdmin } from '../lib/simpleAuth';
 
 export async function createUser(email: string, displayName?: string, poolId?: string) {
   const supabase = await createClient();
   
-  // Get current user and verify admin
-  const { data: { user } } = await supabase.auth.getUser();
+  // Get current user and verify admin using new auth system
+  const user = await getUser();
   
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !isAdmin(user.email)) {
     return { success: false, message: 'Unauthorized - admin access required' };
   }
 
   try {
-    // Generate a unique ID for the placeholder user
-    const userId = uuidv4();
-    
     // Check if a player with this display name already exists in the pool
     const playerName = displayName || email.split('@')[0];
     
@@ -42,12 +37,12 @@ export async function createUser(email: string, displayName?: string, poolId?: s
         .eq('id', poolId)
         .single();
 
-      // Create player record with a placeholder user_id
+      // Create player record (no auth needed since we use cookie-based auth)
       const { error: playerError } = await supabase
         .from('players')
         .insert({
           pool_id: poolId,
-          user_id: userId,
+          user_id: null,
           display_name: playerName,
           lives_remaining: pool?.starting_lives || 3,
           is_eliminated: false
@@ -60,15 +55,10 @@ export async function createUser(email: string, displayName?: string, poolId?: s
 
     return { 
       success: true, 
-      message: `Player '${playerName}' added to the pool successfully. You can now submit picks on their behalf.`, 
-      userId 
+      message: `Player '${playerName}' added to the pool successfully. You can now submit picks on their behalf.`
     };
   } catch (error) {
     console.error('Error creating user:', error);
     return { success: false, message: 'An error occurred while processing the request' };
   }
-}
-
-export async function isUserAdmin(email: string): Promise<boolean> {
-  return email === ADMIN_EMAIL;
 }

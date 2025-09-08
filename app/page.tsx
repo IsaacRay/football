@@ -12,8 +12,6 @@ import PickHistory from './components/PickHistory';
 import { getCurrentNFLWeek } from './lib/weekCalculator';
 import { 
   getDefaultPool, 
-  getCurrentUserPlayer, 
-  createPlayerForCurrentUser,
   getPlayersByPool,
   getGamesByWeek,
   getPicksByPlayer,
@@ -33,37 +31,40 @@ export default function Home() {
   const [authCheckDelay, setAuthCheckDelay] = useState(true);
 
   useEffect(() => {
-    // Check for auth-success cookie which indicates we just logged in
-    const hasAuthSuccess = document.cookie.includes('auth-success=true');
-    
-    if (hasAuthSuccess) {
-      // Clear the cookie after reading it to prevent it being read again
-      document.cookie = 'auth-success=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-      
-      // Wait for auth state to settle after successful login
-      const timer = setTimeout(() => {
-        setAuthCheckDelay(false);
-      }, 1500);
-      
-      return () => clearTimeout(timer);
-    } else {
-      // No auth success cookie, proceed normally
+    const timer = setTimeout(() => {
       setAuthCheckDelay(false);
-    }
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (!loading && !user) {
+      router.push('/login');
+    } else if (user) {
       loadData();
     }
-  }, [user]);
+  }, [loading, user, router]);
 
+  // Load fresh data when page becomes visible (handles refresh case)
   useEffect(() => {
-    // Only redirect after auth check delay and if we're sure there's no user
-    if (!loading && !user && !authCheckDelay) {
-      router.push('/login');
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user && !loading) {
+        loadData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also trigger on initial load if user is ready
+    if (user && !loading) {
+      loadData();
     }
-  }, [loading, user, router, authCheckDelay]);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, loading]); // Depend on user and loading state
+
 
   const loadData = async () => {
     setDataLoading(true);
@@ -72,11 +73,9 @@ export default function Home() {
       // Get current week based on date
       const week = getCurrentNFLWeek();
       setCurrentWeek(week);
-      console.log('Current NFL week:', week);
 
       // Get default pool
       const defaultPool = await getDefaultPool();
-      console.log('Default pool:', defaultPool);
       if (!defaultPool) {
         console.error('No default pool found');
         alert('No active pool found. Please contact the administrator.');
@@ -85,32 +84,45 @@ export default function Home() {
       }
       setPool(defaultPool);
 
-      // Get current user's player record
-      let userPlayer = await getCurrentUserPlayer(defaultPool.id);
-      console.log('User player:', userPlayer);
-      
-      // If user doesn't have a player record, create one
-      if (!userPlayer) {
-        console.log('Creating new player for user');
-        userPlayer = await createPlayerForCurrentUser(defaultPool.id);
-        console.log('Created player:', userPlayer);
-        if (!userPlayer) {
-          console.error('Failed to create player');
-          alert('Failed to create player record. Please try again.');
+      // Get current user's player record via API
+      try {
+        const response = await fetch('/api/player/me');
+        let userPlayer = null;
+        
+        if (response.ok) {
+          userPlayer = await response.json();
+        } else {
+          alert('No player record found. Please contact the admin to be added to the pool.');
           setDataLoading(false);
           return;
         }
+        
+        if (!userPlayer) {
+          console.error('Failed to get player');
+          alert('Failed to get player record. Please try again.');
+          setDataLoading(false);
+          return;
+        }
+        setCurrentPlayer(userPlayer);
+      } catch (fetchError) {
+        console.error('Error fetching player:', fetchError);
+        alert('Failed to load player data. Please try again.');
+        setDataLoading(false);
+        return;
       }
-      setCurrentPlayer(userPlayer);
 
-      // Get all players in the pool
-      const allPlayers = await getPlayersByPool(defaultPool.id);
-      console.log('All players:', allPlayers);
+      // Get all players in the pool via API to ensure fresh data
+      const playersResponse = await fetch('/api/players', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const allPlayers = await playersResponse.json();
       setPlayers(allPlayers);
 
       // Get current week's games
       const weekGames = await getGamesByWeek(week);
-      console.log('Week games:', weekGames);
       setGames(weekGames);
 
     } catch (error) {

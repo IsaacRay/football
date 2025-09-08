@@ -1,6 +1,5 @@
 import { createClient } from '../utils/supabase/client';
 import { Database } from './supabase';
-import { v4 } from 'uuid';
 
 export type Team = Database['public']['Tables']['teams']['Row'];
 export type Game = Database['public']['Tables']['games']['Row'];
@@ -73,90 +72,37 @@ export async function getPlayersByPool(poolId: string): Promise<Player[]> {
     .order('display_name');
   
   if (error) {
+    console.error('Error fetching players:', error);
     return [];
   }
   
   return data || [];
 }
 
-export async function getCurrentUserPlayer(poolId: string): Promise<Player | null> {
-  // Check for backdoor email in localStorage
-  const backdoorEmail = typeof window !== 'undefined' ? localStorage.getItem('backdoor_email') : null;
+// Get players with their pick counts for leaderboard
+export async function getPlayersWithPickCounts(poolId: string): Promise<(Player & { pick_count: number })[]> {
+  // First get all players
+  const players = await getPlayersByPool(poolId);
   
-  if (backdoorEmail) {
-    // Check if we have a stored user_id for this email
-    const emailMappings = typeof window !== 'undefined' 
-      ? JSON.parse(localStorage.getItem('backdoor_email_mappings') || '{}')
-      : {};
-    
-    const backdoorUserId = emailMappings[backdoorEmail];
-    
-    if (backdoorUserId) {
-      // Try to get player by the stored user_id
-      const { data: backdoorPlayer, error: backdoorError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('pool_id', poolId)
-        .eq('user_id', backdoorUserId)
-        .single();
+  // Then get pick counts for each player
+  const playersWithCounts = await Promise.all(
+    players.map(async (player) => {
+      const { count, error } = await supabase
+        .from('picks')
+        .select('*', { count: 'exact', head: true })
+        .eq('player_id', player.id);
       
-      if (!backdoorError && backdoorPlayer) {
-        return backdoorPlayer;
-      }
-    }
-    
-    // If no mapping exists, create a new player for this email
-    const userId = v4();
-    const displayName = backdoorEmail.split('@')[0];
-    
-    // Get pool details
-    const { data: pool } = await supabase
-      .from('pools')
-      .select('starting_lives')
-      .eq('id', poolId)
-      .single();
-    
-    // Create new player
-    const { data: newPlayer, error: createError } = await supabase
-      .from('players')
-      .insert({
-        pool_id: poolId,
-        user_id: userId,
-        display_name: displayName,
-        lives_remaining: pool?.starting_lives || 3,
-        is_eliminated: false
-      })
-      .select()
-      .single();
-    
-    if (!createError && newPlayer) {
-      // Store the mapping
-      if (typeof window !== 'undefined') {
-        const updatedMappings = { ...emailMappings, [backdoorEmail]: userId };
-        localStorage.setItem('backdoor_email_mappings', JSON.stringify(updatedMappings));
-      }
-      return newPlayer;
-    }
-  }
+      return {
+        ...player,
+        pick_count: error ? 0 : (count || 0)
+      };
+    })
+  );
   
-  // Otherwise get regular authenticated user's player
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-  
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .eq('pool_id', poolId)
-    .eq('user_id', user.id)
-    .single();
-  
-  if (error) {
-    return null;
-  }
-  
-  return data;
+  return playersWithCounts;
 }
+
+// Note: getCurrentUserPlayer has been replaced with /api/player/me endpoint
 
 // Picks
 export async function getPicksByPlayer(playerId: string): Promise<Pick[]> {
@@ -167,6 +113,7 @@ export async function getPicksByPlayer(playerId: string): Promise<Pick[]> {
     .order('week_number');
   
   if (error) {
+    console.error('Error fetching picks:', error);
     return [];
   }
   
@@ -258,41 +205,7 @@ export async function getDefaultPool(): Promise<Pool | null> {
   return data;
 }
 
-export async function createPlayerForCurrentUser(poolId: string, displayName?: string): Promise<Player | null> {
-  // Check for backdoor email mode
-  const backdoorEmail = typeof window !== 'undefined' ? localStorage.getItem('backdoor_email') : null;
-  
-  if (backdoorEmail) {
-    // In backdoor mode, return the existing player or null if it doesn't exist
-    // The getCurrentUserPlayer function will handle creation
-    return getCurrentUserPlayer(poolId);
-  }
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-  
-  const { data, error } = await supabase
-    .from('players')
-    .insert({
-      pool_id: poolId,
-      user_id: user.id,
-      display_name: displayName || user.email?.split('@')[0] || 'Player',
-      lives_remaining: 3,
-      is_eliminated: false,
-    })
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Error creating player:', error);
-    throw new Error(`Failed to create player: ${error.message}`);
-  }
-  
-  return data;
-}
+// Note: createPlayerForCurrentUser has been removed - players are now created by admin via the admin panel
 
 // Available teams for a player (teams not yet used)
 export async function getAvailableTeams(playerId: string, excludeWeek?: number): Promise<Team[]> {

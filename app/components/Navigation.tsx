@@ -5,14 +5,14 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Navigation() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
   
   const isAdmin = user?.email === 'isaacmray1984@gmail.com';
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
     } catch (error) {
       // Handle error silently
     }
