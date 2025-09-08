@@ -1,5 +1,6 @@
 import { createClient } from '../utils/supabase/client';
 import { Database } from './supabase';
+import { v4 } from 'uuid';
 
 export type Team = Database['public']['Tables']['teams']['Row'];
 export type Game = Database['public']['Tables']['games']['Row'];
@@ -79,20 +80,62 @@ export async function getPlayersByPool(poolId: string): Promise<Player[]> {
 }
 
 export async function getCurrentUserPlayer(poolId: string): Promise<Player | null> {
-  // Check for backdoor player in localStorage
-  const backdoorPlayerName = typeof window !== 'undefined' ? localStorage.getItem('backdoor_player') : null;
+  // Check for backdoor email in localStorage
+  const backdoorEmail = typeof window !== 'undefined' ? localStorage.getItem('backdoor_email') : null;
   
-  if (backdoorPlayerName) {
-    // Try to get player by display name
-    const { data: backdoorPlayer, error: backdoorError } = await supabase
-      .from('players')
-      .select('*')
-      .eq('pool_id', poolId)
-      .eq('display_name', backdoorPlayerName)
+  if (backdoorEmail) {
+    // Check if we have a stored user_id for this email
+    const emailMappings = typeof window !== 'undefined' 
+      ? JSON.parse(localStorage.getItem('backdoor_email_mappings') || '{}')
+      : {};
+    
+    const backdoorUserId = emailMappings[backdoorEmail];
+    
+    if (backdoorUserId) {
+      // Try to get player by the stored user_id
+      const { data: backdoorPlayer, error: backdoorError } = await supabase
+        .from('players')
+        .select('*')
+        .eq('pool_id', poolId)
+        .eq('user_id', backdoorUserId)
+        .single();
+      
+      if (!backdoorError && backdoorPlayer) {
+        return backdoorPlayer;
+      }
+    }
+    
+    // If no mapping exists, create a new player for this email
+    const userId = v4();
+    const displayName = backdoorEmail.split('@')[0];
+    
+    // Get pool details
+    const { data: pool } = await supabase
+      .from('pools')
+      .select('starting_lives')
+      .eq('id', poolId)
       .single();
     
-    if (!backdoorError && backdoorPlayer) {
-      return backdoorPlayer;
+    // Create new player
+    const { data: newPlayer, error: createError } = await supabase
+      .from('players')
+      .insert({
+        pool_id: poolId,
+        user_id: userId,
+        display_name: displayName,
+        lives_remaining: pool?.starting_lives || 3,
+        is_eliminated: false
+      })
+      .select()
+      .single();
+    
+    if (!createError && newPlayer) {
+      // Store the mapping
+      if (typeof window !== 'undefined') {
+        const updatedMappings = { ...emailMappings, [backdoorEmail]: userId };
+        localStorage.setItem('backdoor_email_mappings', JSON.stringify(updatedMappings));
+      }
+      return newPlayer;
     }
   }
   
@@ -216,19 +259,13 @@ export async function getDefaultPool(): Promise<Pool | null> {
 }
 
 export async function createPlayerForCurrentUser(poolId: string, displayName?: string): Promise<Player | null> {
-  // Check for backdoor player mode
-  const backdoorPlayerName = typeof window !== 'undefined' ? localStorage.getItem('backdoor_player') : null;
+  // Check for backdoor email mode
+  const backdoorEmail = typeof window !== 'undefined' ? localStorage.getItem('backdoor_email') : null;
   
-  if (backdoorPlayerName) {
-    // In backdoor mode, don't create - the player should already exist from backdoor login
-    const { data: existingPlayer } = await supabase
-      .from('players')
-      .select('*')
-      .eq('pool_id', poolId)
-      .eq('display_name', backdoorPlayerName)
-      .single();
-    
-    return existingPlayer;
+  if (backdoorEmail) {
+    // In backdoor mode, return the existing player or null if it doesn't exist
+    // The getCurrentUserPlayer function will handle creation
+    return getCurrentUserPlayer(poolId);
   }
   
   const { data: { user } } = await supabase.auth.getUser();
