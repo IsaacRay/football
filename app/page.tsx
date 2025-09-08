@@ -23,7 +23,7 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [pool, setPool] = useState<Pool | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<(Player & { pick_count: number })[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [currentWeek, setCurrentWeek] = useState(1);
