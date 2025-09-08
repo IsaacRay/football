@@ -7,17 +7,23 @@ export interface User {
 
 export async function getUser(): Promise<User | null> {
   const cookieStore = await cookies();
-  const email = cookieStore.get('user-email')?.value;
+  const encodedEmail = cookieStore.get('Auth')?.value;
   
-  if (!email) return null;
+  if (!encodedEmail) return null;
   
-  return { email };
+  try {
+    const email = Buffer.from(encodedEmail, 'base64').toString('utf-8');
+    return { email };
+  } catch {
+    return null;
+  }
 }
 
 export async function setUser(email: string) {
   const cookieStore = await cookies();
+  const encodedEmail = Buffer.from(email, 'utf-8').toString('base64');
   
-  cookieStore.set('user-email', email, {
+  cookieStore.set('Auth', encodedEmail, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -28,7 +34,7 @@ export async function setUser(email: string) {
 
 export async function logout() {
   const cookieStore = await cookies();
-  cookieStore.delete('user-email');
+  cookieStore.delete('Auth');
 }
 
 export function isAdmin(email: string | null): boolean {
