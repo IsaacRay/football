@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getCurrentNFLWeek } from '../lib/weekCalculator';
-import { getGamesByWeek, getAllTeams, updateGameWinner, getPlayersByPool, getDefaultPool, getPicksByPlayer, submitPick, updatePick, getExistingPick, getAvailableTeams } from '../lib/supabaseQueries';
+import { getGamesByWeek, getAllTeams, getPlayersByPool, getDefaultPool, getPicksByPlayer, submitPick, updatePick, getExistingPick, getAvailableTeams } from '../lib/supabaseQueries';
 import type { Game, Team, Player, Pool, Pick } from '../lib/supabaseQueries';
 import { createClient } from '../utils/supabase/client';
 import { createUser } from '../actions/admin';
+import { updateGameWinnerAdmin } from '../actions/gameAdmin';
 
 const ADMIN_EMAIL = 'isaacmray1984@gmail.com';
 
@@ -108,13 +109,21 @@ export default function AdminPage() {
   const handleGameWinnerUpdate = async (gameId: string, winnerId: string | null) => {
     setSaving(gameId);
     try {
-      const success = await updateGameWinner(gameId, winnerId);
-      if (success) {
+      const result = await updateGameWinnerAdmin(gameId, winnerId);
+      if (result.success) {
         // Reload data to show updated results
         await loadData(selectedWeek);
+        alert('Game result saved successfully!');
+      } else {
+        if (result.requiresPolicy) {
+          alert(result.message);
+        } else {
+          alert('Failed to save game result: ' + result.message);
+        }
       }
     } catch (error) {
-      // Handle error silently
+      console.error('Error updating game winner:', error);
+      alert('Error saving game result: ' + (error as Error).message);
     } finally {
       setSaving(null);
     }

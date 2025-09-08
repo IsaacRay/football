@@ -41,19 +41,24 @@ export async function getGamesByWeek(week: number, season = 2025): Promise<Game[
 
 // Update game winner (Admin function)
 export async function updateGameWinner(gameId: string, winnerId: string | null): Promise<boolean> {
-  const { error } = await supabase
+  console.log('Updating game winner:', { gameId, winnerId });
+  
+  const { data, error } = await supabase
     .from('games')
     .update({ 
       winner: winnerId,
       is_complete: winnerId !== null,
       updated_at: new Date().toISOString()
     })
-    .eq('id', gameId);
+    .eq('id', gameId)
+    .select();
   
   if (error) {
+    console.error('Error updating game winner:', error);
     return false;
   }
   
+  console.log('Game winner updated successfully:', data);
   return true;
 }
 
