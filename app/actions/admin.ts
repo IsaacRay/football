@@ -1,77 +1,38 @@
 'use server';
 
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { createClient } from '../utils/supabase/server';
+import { v4 as uuidv4 } from 'uuid';
 
 const ADMIN_EMAIL = 'isaacmray1984@gmail.com';
 
 export async function createUser(email: string, displayName?: string, poolId?: string) {
-  // Check if the current user is admin
-  const cookieStore = await cookies();
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      persistSession: false
-    }
-  });
-
-  // Get current user
-  const authCookie = cookieStore.get('supabase-auth-token');
-  if (!authCookie) {
-    return { success: false, message: 'Unauthorized' };
+  const supabase = await createClient();
+  
+  // Get current user and verify admin
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user || user.email !== ADMIN_EMAIL) {
+    return { success: false, message: 'Unauthorized - admin access required' };
   }
 
-  // For now, we'll skip the auth check and just create the user
-  // In production, you'd want to properly verify the admin user
-
   try {
-    let userId: string;
-    let isNewUser = false;
-
-    // First check if user already exists in auth.users by trying to get them from profiles or by listing users
-    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    // Generate a unique ID for the placeholder user
+    const userId = uuidv4();
     
-    const existingUser = users?.find(u => u.email === email);
-
-    if (existingUser) {
-      // User already exists in auth
-      userId = existingUser.id;
-    } else {
-      // Create new auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          display_name: displayName || email.split('@')[0]
-        }
-      });
-
-      if (authError) {
-        return { success: false, message: authError.message };
-      }
-
-      if (!authData.user) {
-        return { success: false, message: 'Failed to create user' };
-      }
-
-      userId = authData.user.id;
-      isNewUser = true;
-    }
-
-    // If poolId provided, create or check player record
-    if (poolId && userId) {
-      // Check if player already exists for this user and pool
+    // Check if a player with this display name already exists in the pool
+    const playerName = displayName || email.split('@')[0];
+    
+    if (poolId) {
+      // Check if player name already exists
       const { data: existingPlayer } = await supabase
         .from('players')
         .select('id')
         .eq('pool_id', poolId)
-        .eq('user_id', userId)
+        .eq('display_name', playerName)
         .single();
 
       if (existingPlayer) {
-        return { success: false, message: 'Player already exists in this pool' };
+        return { success: false, message: 'A player with this name already exists in the pool' };
       }
 
       // Get pool details
@@ -81,13 +42,13 @@ export async function createUser(email: string, displayName?: string, poolId?: s
         .eq('id', poolId)
         .single();
 
-      // Create player record
+      // Create player record with a placeholder user_id
       const { error: playerError } = await supabase
         .from('players')
         .insert({
           pool_id: poolId,
           user_id: userId,
-          display_name: displayName || email.split('@')[0],
+          display_name: playerName,
           lives_remaining: pool?.starting_lives || 3,
           is_eliminated: false
         });
@@ -97,28 +58,13 @@ export async function createUser(email: string, displayName?: string, poolId?: s
       }
     }
 
-    // Send magic link to the user
-    const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-      }
-    });
-
-    if (magicLinkError) {
-      return { 
-        success: true, 
-        message: isNewUser ? 'User created successfully but failed to send login email' : 'Player added to pool but failed to send login email', 
-        userId 
-      };
-    }
-
     return { 
       success: true, 
-      message: isNewUser ? 'User created and login email sent' : 'Player added to pool and login email sent', 
+      message: `Player '${playerName}' added to the pool successfully. You can now submit picks on their behalf.`, 
       userId 
     };
   } catch (error) {
+    console.error('Error creating user:', error);
     return { success: false, message: 'An error occurred while processing the request' };
   }
 }

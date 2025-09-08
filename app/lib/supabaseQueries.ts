@@ -74,6 +74,24 @@ export async function getPlayersByPool(poolId: string): Promise<Player[]> {
 }
 
 export async function getCurrentUserPlayer(poolId: string): Promise<Player | null> {
+  // Check for backdoor player in localStorage
+  const backdoorPlayerName = typeof window !== 'undefined' ? localStorage.getItem('backdoor_player') : null;
+  
+  if (backdoorPlayerName) {
+    // Try to get player by display name
+    const { data: backdoorPlayer, error: backdoorError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('pool_id', poolId)
+      .eq('display_name', backdoorPlayerName)
+      .single();
+    
+    if (!backdoorError && backdoorPlayer) {
+      return backdoorPlayer;
+    }
+  }
+  
+  // Otherwise get regular authenticated user's player
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) return null;
@@ -193,6 +211,21 @@ export async function getDefaultPool(): Promise<Pool | null> {
 }
 
 export async function createPlayerForCurrentUser(poolId: string, displayName?: string): Promise<Player | null> {
+  // Check for backdoor player mode
+  const backdoorPlayerName = typeof window !== 'undefined' ? localStorage.getItem('backdoor_player') : null;
+  
+  if (backdoorPlayerName) {
+    // In backdoor mode, don't create - the player should already exist from backdoor login
+    const { data: existingPlayer } = await supabase
+      .from('players')
+      .select('*')
+      .eq('pool_id', poolId)
+      .eq('display_name', backdoorPlayerName)
+      .single();
+    
+    return existingPlayer;
+  }
+  
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
