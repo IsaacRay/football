@@ -19,23 +19,23 @@ export function getCurrentNFLWeek(): number {
   // Each week transitions on Tuesday (day after Monday Night Football)
   const weekStartDates = [
     new Date('2025-09-04T00:00:00-05:00'), // Week 1: Thu Sep 4
-    new Date('2025-09-10T00:00:00-05:00'), // Week 2: Tue Sep 10 
-    new Date('2025-09-17T00:00:00-05:00'), // Week 3: Tue Sep 17
-    new Date('2025-09-24T00:00:00-05:00'), // Week 4: Tue Sep 24
-    new Date('2025-10-01T00:00:00-05:00'), // Week 5: Tue Oct 1
-    new Date('2025-10-08T00:00:00-05:00'), // Week 6: Tue Oct 8
-    new Date('2025-10-15T00:00:00-05:00'), // Week 7: Tue Oct 15
-    new Date('2025-10-22T00:00:00-05:00'), // Week 8: Tue Oct 22
-    new Date('2025-10-29T00:00:00-05:00'), // Week 9: Tue Oct 29
-    new Date('2025-11-05T00:00:00-05:00'), // Week 10: Tue Nov 5
-    new Date('2025-11-12T00:00:00-05:00'), // Week 11: Tue Nov 12
-    new Date('2025-11-19T00:00:00-05:00'), // Week 12: Tue Nov 19
-    new Date('2025-11-26T00:00:00-05:00'), // Week 13: Tue Nov 26
-    new Date('2025-12-03T00:00:00-05:00'), // Week 14: Tue Dec 3
-    new Date('2025-12-10T00:00:00-05:00'), // Week 15: Tue Dec 10
-    new Date('2025-12-17T00:00:00-05:00'), // Week 16: Tue Dec 17
-    new Date('2025-12-24T00:00:00-05:00'), // Week 17: Tue Dec 24
-    new Date('2025-12-31T00:00:00-05:00'), // Week 18: Tue Dec 31
+    new Date('2025-09-09T00:01:00-05:00'), // Week 2: Tue Sep 9 at 12:01 AM
+    new Date('2025-09-16T00:01:00-05:00'), // Week 3: Tue Sep 16 at 12:01 AM
+    new Date('2025-09-23T00:01:00-05:00'), // Week 4: Tue Sep 23 at 12:01 AM
+    new Date('2025-09-30T00:01:00-05:00'), // Week 5: Tue Sep 30 at 12:01 AM
+    new Date('2025-10-07T00:01:00-05:00'), // Week 6: Tue Oct 7 at 12:01 AM
+    new Date('2025-10-14T00:01:00-05:00'), // Week 7: Tue Oct 14 at 12:01 AM
+    new Date('2025-10-21T00:01:00-05:00'), // Week 8: Tue Oct 21 at 12:01 AM
+    new Date('2025-10-28T00:01:00-05:00'), // Week 9: Tue Oct 28 at 12:01 AM
+    new Date('2025-11-04T00:01:00-05:00'), // Week 10: Tue Nov 4 at 12:01 AM
+    new Date('2025-11-11T00:01:00-05:00'), // Week 11: Tue Nov 11 at 12:01 AM
+    new Date('2025-11-18T00:01:00-05:00'), // Week 12: Tue Nov 18 at 12:01 AM
+    new Date('2025-11-25T00:01:00-05:00'), // Week 13: Tue Nov 25 at 12:01 AM
+    new Date('2025-12-02T00:01:00-05:00'), // Week 14: Tue Dec 2 at 12:01 AM
+    new Date('2025-12-09T00:01:00-05:00'), // Week 15: Tue Dec 9 at 12:01 AM
+    new Date('2025-12-16T00:01:00-05:00'), // Week 16: Tue Dec 16 at 12:01 AM
+    new Date('2025-12-23T00:01:00-05:00'), // Week 17: Tue Dec 23 at 12:01 AM
+    new Date('2025-12-30T00:01:00-05:00'), // Week 18: Tue Dec 30 at 12:01 AM
   ];
   
   // Find the current week by checking which week start we've passed
@@ -52,23 +52,23 @@ export function getCurrentNFLWeek(): number {
 export function getWeekDateRange(week: number): { start: Date; end: Date } {
   const weekStarts = [
     new Date('2025-09-04'), // Week 1
-    new Date('2025-09-10'), // Week 2
-    new Date('2025-09-17'), // Week 3
-    new Date('2025-09-24'), // Week 4
-    new Date('2025-10-01'), // Week 5
-    new Date('2025-10-08'), // Week 6
-    new Date('2025-10-15'), // Week 7
-    new Date('2025-10-22'), // Week 8
-    new Date('2025-10-29'), // Week 9
-    new Date('2025-11-05'), // Week 10
-    new Date('2025-11-12'), // Week 11
-    new Date('2025-11-19'), // Week 12
-    new Date('2025-11-26'), // Week 13
-    new Date('2025-12-03'), // Week 14
-    new Date('2025-12-10'), // Week 15
-    new Date('2025-12-17'), // Week 16
-    new Date('2025-12-24'), // Week 17
-    new Date('2025-12-31'), // Week 18
+    new Date('2025-09-09'), // Week 2
+    new Date('2025-09-16'), // Week 3
+    new Date('2025-09-23'), // Week 4
+    new Date('2025-09-30'), // Week 5
+    new Date('2025-10-07'), // Week 6
+    new Date('2025-10-14'), // Week 7
+    new Date('2025-10-21'), // Week 8
+    new Date('2025-10-28'), // Week 9
+    new Date('2025-11-04'), // Week 10
+    new Date('2025-11-11'), // Week 11
+    new Date('2025-11-18'), // Week 12
+    new Date('2025-11-25'), // Week 13
+    new Date('2025-12-02'), // Week 14
+    new Date('2025-12-09'), // Week 15
+    new Date('2025-12-16'), // Week 16
+    new Date('2025-12-23'), // Week 17
+    new Date('2025-12-30'), // Week 18
   ];
   
   const start = weekStarts[week - 1] || weekStarts[0];
