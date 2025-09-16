@@ -7,13 +7,16 @@ const resend = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY);
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase();
+
     // Create simple token
-    const token = await createMagicLinkToken(email);
+    const token = await createMagicLinkToken(normalizedEmail);
     
     // Generate magic link
     const baseUrl = process.env.NODE_ENV === 'production' 
@@ -23,17 +26,17 @@ export async function POST(request: NextRequest) {
     
     // For development, just log the link if Resend is not configured
     if (!process.env.NEXT_PUBLIC_RESEND_API_KEY) {
-      console.log('Magic link for', email, ':', magicLink);
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Check console for magic link (dev mode)' 
+      console.log('Magic link for', normalizedEmail, ':', magicLink);
+      return NextResponse.json({
+        success: true,
+        message: 'Check console for magic link (dev mode)'
       });
     }
-    
+
     // Send email with Resend
     const { error: emailError } = await resend.emails.send({
       from: 'Football Pool <noreply@olneyacresfootball.com>',
-      to: email,
+      to: normalizedEmail,
       subject: 'Your login link for Football Pool',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -21,8 +21,8 @@ export async function getUser(): Promise<User | null> {
 
 export async function setUser(email: string) {
   const cookieStore = await cookies();
-  const encodedEmail = Buffer.from(email, 'utf-8').toString('base64');
-  
+  const encodedEmail = Buffer.from(email.toLowerCase(), 'utf-8').toString('base64');
+
   cookieStore.set('Auth', encodedEmail, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -46,13 +46,13 @@ export async function createMagicLinkToken(email: string): Promise<string> {
   // Generate a random token - just random characters
   const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('magic_link_tokens')
     .insert({
       id: token,
-      email,
+      email: email.toLowerCase(),
       expires_at: expiresAt.toISOString(),
       used: false
     });
