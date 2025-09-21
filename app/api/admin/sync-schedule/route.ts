@@ -46,7 +46,37 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     let updatedCount = 0;
     let addedCount = 0;
+    let deletedCount = 0;
     let errors: string[] = [];
+
+    // First, get all games with winners to preserve them
+    const { data: gamesWithWinners } = await supabase
+      .from('games')
+      .select('id, week_number, away_team, home_team, winner')
+      .eq('season', 2025)
+      .not('winner', 'is', null);
+
+    // Create a map of games with winners for easy lookup
+    const preservedGames = new Map();
+    if (gamesWithWinners) {
+      gamesWithWinners.forEach(game => {
+        const key = `${game.week_number}-${game.away_team}-${game.home_team}`;
+        preservedGames.set(key, game);
+      });
+    }
+
+    // Delete all games without winners
+    const { error: deleteError, count } = await supabase
+      .from('games')
+      .delete()
+      .eq('season', 2025)
+      .is('winner', null);
+
+    if (deleteError) {
+      errors.push(`Error deleting games: ${deleteError.message}`);
+    } else {
+      deletedCount = count || 0;
+    }
 
     for (const game of scheduleGames) {
       try {
@@ -61,46 +91,27 @@ export async function POST(request: NextRequest) {
         // Convert datetime to PostgreSQL timestamp
         const gameTime = new Date(game.DateTime).toISOString();
 
-        // First, check if this game exists
-        const { data: existingGames } = await supabase
-          .from('games')
-          .select('id, game_time')
-          .eq('week_number', game.Week)
-          .eq('away_team', awayTeamId)
-          .eq('home_team', homeTeamId)
-          .eq('season', 2025);
+        // Check if this game was preserved (has a winner)
+        const gameKey = `${game.Week}-${awayTeamId}-${homeTeamId}`;
+        const preservedGame = preservedGames.get(gameKey);
 
-        if (existingGames && existingGames.length > 0) {
-          // Handle duplicates - keep first, delete extras
-          if (existingGames.length > 1) {
-            errors.push(`Found ${existingGames.length} duplicate games for ${game.AwayTeam} @ ${game.HomeTeam} Week ${game.Week}`);
-            // Delete duplicates, keeping the first one
-            for (let i = 1; i < existingGames.length; i++) {
-              await supabase.from('games').delete().eq('id', existingGames[i].id);
-            }
-          }
-          
-          const existingGame = existingGames[0];
-          // Game exists - check if time has changed
-          const existingTime = new Date(existingGame.game_time).toISOString();
-          if (existingTime !== gameTime) {
-            // Update the game time
-            const { error } = await supabase
-              .from('games')
-              .update({
-                game_time: gameTime,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existingGame.id);
+        if (preservedGame) {
+          // Game has a winner, just update the game time if needed
+          const { error } = await supabase
+            .from('games')
+            .update({
+              game_time: gameTime,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', preservedGame.id);
 
-            if (error) {
-              errors.push(`Error updating ${game.AwayTeam} @ ${game.HomeTeam}: ${error.message}`);
-            } else {
-              updatedCount++;
-            }
+          if (error) {
+            errors.push(`Error updating preserved game ${game.AwayTeam} @ ${game.HomeTeam}: ${error.message}`);
+          } else {
+            updatedCount++;
           }
         } else {
-          // Game doesn't exist - add it
+          // Game doesn't exist or was deleted - add it
           const { error } = await supabase
             .from('games')
             .insert({
@@ -127,13 +138,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Schedule sync complete`,
+      deleted: deletedCount,
       updated: updatedCount,
       added: addedCount,
+      preserved: preservedGames.size,
       totalProcessed: scheduleGames.length,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
-    console.error('Error syncing schedule:', error);
     return NextResponse.json({ error: 'Failed to sync schedule' }, { status: 500 });
   }
 }

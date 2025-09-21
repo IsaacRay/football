@@ -12,13 +12,6 @@ interface WeeklyScheduleProps {
 export default function WeeklySchedule({ games, weekNumber }: WeeklyScheduleProps) {
   const [teams, setTeams] = useState<Team[]>([]);
 
-  console.log('WeeklySchedule received:', games.length, 'games for week', weekNumber);
-  console.log('Game details:', games.map(g => ({ 
-    week: g.week_number, 
-    away: g.away_team, 
-    home: g.home_team 
-  })));
-
   useEffect(() => {
     const loadTeams = async () => {
       const allTeams = await getAllTeams();

@@ -72,13 +72,11 @@ export default function Home() {
     try {
       // Get current week based on date
       const week = getCurrentNFLWeek();
-      console.log('Current NFL week calculated as:', week);
       setCurrentWeek(week);
 
       // Get default pool
       const defaultPool = await getDefaultPool();
       if (!defaultPool) {
-        console.error('No default pool found');
         alert('No active pool found. Please contact the administrator.');
         setDataLoading(false);
         return;
@@ -99,14 +97,12 @@ export default function Home() {
         }
         
         if (!userPlayer) {
-          console.error('Failed to get player');
           alert('Failed to get player record. Please try again.');
           setDataLoading(false);
           return;
         }
         setCurrentPlayer(userPlayer);
       } catch (fetchError) {
-        console.error('Error fetching player:', fetchError);
         alert('Failed to load player data. Please try again.');
         setDataLoading(false);
         return;
@@ -123,13 +119,10 @@ export default function Home() {
       setPlayers(allPlayers);
 
       // Get current week's games
-      console.log('Fetching games for week:', week);
       const weekGames = await getGamesByWeek(week);
-      console.log('Games received from getGamesByWeek:', weekGames.length, 'games');
       setGames(weekGames);
 
     } catch (error) {
-      console.error('Error loading data:', error);
       alert(`Failed to load pool data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDataLoading(false);
