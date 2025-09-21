@@ -62,16 +62,25 @@ export async function POST(request: NextRequest) {
         const gameTime = new Date(game.DateTime).toISOString();
 
         // First, check if this game exists
-        const { data: existingGame } = await supabase
+        const { data: existingGames } = await supabase
           .from('games')
           .select('id, game_time')
           .eq('week_number', game.Week)
           .eq('away_team', awayTeamId)
           .eq('home_team', homeTeamId)
-          .eq('season', 2025)
-          .single();
+          .eq('season', 2025);
 
-        if (existingGame) {
+        if (existingGames && existingGames.length > 0) {
+          // Handle duplicates - keep first, delete extras
+          if (existingGames.length > 1) {
+            errors.push(`Found ${existingGames.length} duplicate games for ${game.AwayTeam} @ ${game.HomeTeam} Week ${game.Week}`);
+            // Delete duplicates, keeping the first one
+            for (let i = 1; i < existingGames.length; i++) {
+              await supabase.from('games').delete().eq('id', existingGames[i].id);
+            }
+          }
+          
+          const existingGame = existingGames[0];
           // Game exists - check if time has changed
           const existingTime = new Date(existingGame.game_time).toISOString();
           if (existingTime !== gameTime) {
