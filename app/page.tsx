@@ -72,6 +72,7 @@ export default function Home() {
     try {
       // Get current week based on date
       const week = getCurrentNFLWeek();
+      console.log('Current NFL week calculated as:', week);
       setCurrentWeek(week);
 
       // Get default pool
@@ -122,7 +123,9 @@ export default function Home() {
       setPlayers(allPlayers);
 
       // Get current week's games
+      console.log('Fetching games for week:', week);
       const weekGames = await getGamesByWeek(week);
+      console.log('Games received from getGamesByWeek:', weekGames.length, 'games');
       setGames(weekGames);
 
     } catch (error) {

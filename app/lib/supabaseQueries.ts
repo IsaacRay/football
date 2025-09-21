@@ -25,6 +25,8 @@ export async function getAllTeams(): Promise<Team[]> {
 
 // Games
 export async function getGamesByWeek(week: number, season = 2025): Promise<Game[]> {
+  console.log('getGamesByWeek called with:', { week, season });
+  
   const { data, error } = await supabase
     .from('games')
     .select('*')
@@ -33,8 +35,16 @@ export async function getGamesByWeek(week: number, season = 2025): Promise<Game[
     .order('game_time');
   
   if (error) {
+    console.error('Error fetching games:', error);
     return [];
   }
+  
+  console.log(`Found ${data?.length || 0} games for week ${week}:`, data?.map(g => ({
+    week_number: g.week_number,
+    away: g.away_team,
+    home: g.home_team,
+    time: g.game_time
+  })));
   
   return data || [];
 }
