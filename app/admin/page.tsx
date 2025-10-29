@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [playerPicks, setPlayerPicks] = useState<Pick[]>([]);
   const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [processingMissedPicks, setProcessingMissedPicks] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -224,6 +225,47 @@ export default function AdminPage() {
     }
   };
 
+  const handleProcessMissedPicks = async () => {
+    setProcessingMissedPicks(true);
+    try {
+      const response = await fetch('/api/admin/process-missed-picks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        let message = 'Missed picks processing complete!\n';
+        if (data.processed > 0) {
+          message += `Processed ${data.processed} player(s) with missed picks\n`;
+          message += `Total lives deducted: ${data.livesDeducted}\n\n`;
+          if (data.updates && data.updates.length > 0) {
+            message += 'Details:\n';
+            data.updates.forEach((update: any) => {
+              message += `- ${update.playerName}: Lost ${update.livesLost} life/lives (${update.newLivesRemaining} remaining)${update.isEliminated ? ' - ELIMINATED' : ''}\n`;
+            });
+          }
+        } else {
+          message = 'No missed picks found. All players are up to date!';
+        }
+
+        alert(message);
+        // Reload the player data if anything changed
+        if (data.processed > 0) {
+          await loadPoolAndPlayers();
+        }
+      } else {
+        alert(`Error processing missed picks: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Failed to process missed picks');
+      console.error('Missed picks processing error:', error);
+    } finally {
+      setProcessingMissedPicks(false);
+    }
+  };
+
   const getTeamName = (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     return team ? team.abbreviation : teamId.toUpperCase();
@@ -318,27 +360,51 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <button
-                onClick={handleSyncSchedule}
-                disabled={syncing}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                {syncing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Sync Schedule
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-gray-500 mt-1">Check for schedule changes</p>
+            <div className="flex gap-4">
+              <div>
+                <button
+                  onClick={handleSyncSchedule}
+                  disabled={syncing}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {syncing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Sync Schedule
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">Check for schedule changes</p>
+              </div>
+              <div>
+                <button
+                  onClick={handleProcessMissedPicks}
+                  disabled={processingMissedPicks}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {processingMissedPicks ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Process Missed Picks
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">Deduct lives for missed picks</p>
+              </div>
             </div>
           </div>
         </div>

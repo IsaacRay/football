@@ -84,6 +84,17 @@ export default function Home() {
       }
       setPool(defaultPool);
 
+      // Check for missed picks and apply penalties (silently in background)
+      try {
+        await fetch('/api/admin/process-missed-picks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        // Silently fail - this is a background check
+        console.log('Missed picks check failed:', error);
+      }
+
       // Get current user's player record via API
       try {
         const response = await fetch('/api/player/me');
