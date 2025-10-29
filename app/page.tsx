@@ -77,7 +77,6 @@ export default function Home() {
       // Get default pool
       const defaultPool = await getDefaultPool();
       if (!defaultPool) {
-        console.error('No default pool found');
         alert('No active pool found. Please contact the administrator.');
         setDataLoading(false);
         return;
@@ -109,14 +108,12 @@ export default function Home() {
         }
         
         if (!userPlayer) {
-          console.error('Failed to get player');
           alert('Failed to get player record. Please try again.');
           setDataLoading(false);
           return;
         }
         setCurrentPlayer(userPlayer);
       } catch (fetchError) {
-        console.error('Error fetching player:', fetchError);
         alert('Failed to load player data. Please try again.');
         setDataLoading(false);
         return;
@@ -137,7 +134,6 @@ export default function Home() {
       setGames(weekGames);
 
     } catch (error) {
-      console.error('Error loading data:', error);
       alert(`Failed to load pool data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDataLoading(false);
