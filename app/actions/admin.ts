@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '../utils/supabase/server';
+import { DEFAULT_STARTING_LIVES } from '../lib/poolConfig';
 import { getUser, isAdmin } from '../lib/simpleAuth';
 
 export async function createUser(email: string, displayName?: string, poolId?: string) {
@@ -44,7 +45,7 @@ export async function createUser(email: string, displayName?: string, poolId?: s
           pool_id: poolId,
           user_id: null,
           display_name: playerName,
-          lives_remaining: pool?.starting_lives || 3,
+          lives_remaining: pool?.starting_lives ?? DEFAULT_STARTING_LIVES,
           is_eliminated: false
         });
 

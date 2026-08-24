@@ -1,75 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, isAdmin } from '../../../lib/simpleAuth';
 import { createClient } from '../../../utils/supabase/server';
+import { fetchEspnSeason } from '../../../lib/espn';
+import { getCurrentSeason, isValidSeason, weeksInSeason } from '../../../lib/season';
 
-// Map SportsData team abbreviations to our database IDs
-const TEAM_MAPPING: Record<string, string> = {
-  'BUF': 'buf', 'MIA': 'mia', 'NE': 'ne', 'NYJ': 'nyj',
-  'BAL': 'bal', 'CIN': 'cin', 'CLE': 'cle', 'PIT': 'pit',
-  'HOU': 'hou', 'IND': 'ind', 'JAX': 'jax', 'TEN': 'ten',
-  'DEN': 'den', 'KC': 'kc', 'LV': 'lv', 'LAC': 'lac',
-  'DAL': 'dal', 'NYG': 'nyg', 'PHI': 'phi', 'WAS': 'was',
-  'CHI': 'chi', 'DET': 'det', 'GB': 'gb', 'MIN': 'min',
-  'ATL': 'atl', 'CAR': 'car', 'NO': 'no', 'TB': 'tb',
-  'ARI': 'ari', 'LAR': 'lar', 'SF': 'sf', 'SEA': 'sea'
-};
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
-interface SportsDataScheduleGame {
-  Week: number;
-  AwayTeam: string;
-  HomeTeam: string;
-  Date: string;
-  DateTime: string;
-  GameKey: string;
-  Status?: string;
-}
-
+/**
+ * Loads a season's schedule into the games table.
+ *
+ * Games that already have a winner are preserved (only their kickoff time is
+ * refreshed); everything else is wiped and rebuilt from ESPN, so this doubles
+ * as the fix for a schedule that has since been flexed.
+ *
+ *   POST /api/admin/sync-schedule?season=2026
+ *
+ * Season defaults to the current one. Admin only.
+ */
 export async function POST(request: NextRequest) {
+  const user = await getUser();
+  if (!user || !isAdmin(user.email)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const seasonParam = request.nextUrl.searchParams.get('season');
+  const season = seasonParam ? Number(seasonParam) : getCurrentSeason();
+  if (!isValidSeason(season)) {
+    return NextResponse.json({ error: 'Invalid season' }, { status: 400 });
+  }
+
   try {
-    // Check if user is admin
-    const user = await getUser();
-    if (!user || !isAdmin(user.email)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Fetch schedule data from SportsData API
-    const response = await fetch(
-      `https://api.sportsdata.io/v3/nfl/scores/json/SchedulesBasic/2025?key=7c029cf040694724a7ce622847ed70ad`
-    );
-    
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Failed to fetch schedule from SportsData' }, { status: 500 });
+    const scheduleGames = await fetchEspnSeason(season, weeksInSeason(season));
+
+    if (scheduleGames.length === 0) {
+      return NextResponse.json(
+        { error: `ESPN returned no games for ${season}. Is the schedule published yet?` },
+        { status: 502 }
+      );
     }
 
-    const scheduleGames: SportsDataScheduleGame[] = await response.json();
-    
     const supabase = await createClient();
+    const errors: string[] = [];
     let updatedCount = 0;
     let addedCount = 0;
     let deletedCount = 0;
-    let errors: string[] = [];
 
-    // First, get all games with winners to preserve them
+    // Preserve any game already carrying a result so a resync never erases history.
     const { data: gamesWithWinners } = await supabase
       .from('games')
       .select('id, week_number, away_team, home_team, winner')
-      .eq('season', 2025)
+      .eq('season', season)
       .not('winner', 'is', null);
 
-    // Create a map of games with winners for easy lookup
-    const preservedGames = new Map();
-    if (gamesWithWinners) {
-      gamesWithWinners.forEach(game => {
-        const key = `${game.week_number}-${game.away_team}-${game.home_team}`;
-        preservedGames.set(key, game);
-      });
+    const preservedGames = new Map<string, { id: string }>();
+    for (const game of gamesWithWinners ?? []) {
+      preservedGames.set(`${game.week_number}-${game.away_team}-${game.home_team}`, game);
     }
 
-    // Delete all games without winners
     const { error: deleteError, count } = await supabase
       .from('games')
-      .delete()
-      .eq('season', 2025)
+      .delete({ count: 'exact' })
+      .eq('season', season)
       .is('winner', null);
 
     if (deleteError) {
@@ -79,73 +71,61 @@ export async function POST(request: NextRequest) {
     }
 
     for (const game of scheduleGames) {
-      try {
-        const awayTeamId = TEAM_MAPPING[game.AwayTeam];
-        const homeTeamId = TEAM_MAPPING[game.HomeTeam];
-        
-        if (!awayTeamId || !homeTeamId) {
-          errors.push(`Unknown team: ${game.AwayTeam} or ${game.HomeTeam}`);
-          continue;
-        }
+      if (!game.awayTeam || !game.homeTeam) {
+        errors.push(`Unknown team in ${game.awayAbbr} @ ${game.homeAbbr}`);
+        continue;
+      }
 
-        // Convert datetime to PostgreSQL timestamp
-        const gameTime = new Date(game.DateTime).toISOString();
+      const gameTime = new Date(game.date).toISOString();
+      const preserved = preservedGames.get(`${game.week}-${game.awayTeam}-${game.homeTeam}`);
 
-        // Check if this game was preserved (has a winner)
-        const gameKey = `${game.Week}-${awayTeamId}-${homeTeamId}`;
-        const preservedGame = preservedGames.get(gameKey);
+      if (preserved) {
+        const { error } = await supabase
+          .from('games')
+          .update({ game_time: gameTime, updated_at: new Date().toISOString() })
+          .eq('id', preserved.id);
 
-        if (preservedGame) {
-          // Game has a winner, just update the game time if needed
-          const { error } = await supabase
-            .from('games')
-            .update({
-              game_time: gameTime,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', preservedGame.id);
-
-          if (error) {
-            errors.push(`Error updating preserved game ${game.AwayTeam} @ ${game.HomeTeam}: ${error.message}`);
-          } else {
-            updatedCount++;
-          }
+        if (error) {
+          errors.push(`Error updating ${game.shortName}: ${error.message}`);
         } else {
-          // Game doesn't exist or was deleted - add it
-          const { error } = await supabase
-            .from('games')
-            .insert({
-              season: 2025,
-              week_number: game.Week,
-              away_team: awayTeamId,
-              home_team: homeTeamId,
-              game_time: gameTime,
-              is_complete: false,
-              winner: null
-            });
-
-          if (error) {
-            errors.push(`Error adding ${game.AwayTeam} @ ${game.HomeTeam}: ${error.message}`);
-          } else {
-            addedCount++;
-          }
+          updatedCount++;
         }
-      } catch (error) {
-        errors.push(`Error processing game: ${error}`);
+        continue;
+      }
+
+      const { error } = await supabase.from('games').insert({
+        season,
+        week_number: game.week,
+        away_team: game.awayTeam,
+        home_team: game.homeTeam,
+        game_time: gameTime,
+        is_complete: false,
+        winner: null,
+      });
+
+      if (error) {
+        errors.push(`Error adding ${game.shortName}: ${error.message}`);
+      } else {
+        addedCount++;
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Schedule sync complete`,
+      message: `Schedule sync complete for ${season}`,
+      season,
       deleted: deletedCount,
       updated: updatedCount,
       added: addedCount,
       preserved: preservedGames.size,
       totalProcessed: scheduleGames.length,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to sync schedule' }, { status: 500 });
+    console.error('sync-schedule failed:', error);
+    return NextResponse.json(
+      { error: `Failed to sync schedule: ${(error as Error).message}` },
+      { status: 500 }
+    );
   }
 }

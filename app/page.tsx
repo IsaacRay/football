@@ -133,13 +133,13 @@ export default function Home() {
     if (!currentPlayer || !pool) return;
 
     try {
-      const success = await submitPick(pick);
-      if (success) {
+      const result = await submitPick(pick);
+      if (result.ok) {
         alert('Pick submitted successfully!');
         // Reload data to show the new pick
         await loadData();
       } else {
-        alert('Failed to submit pick. Please try again.');
+        alert(result.message ?? 'Failed to submit pick. Please try again.');
       }
     } catch (error) {
       alert('Failed to submit pick. Please try again.');
@@ -176,7 +176,7 @@ export default function Home() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <PoolRules />
+          <PoolRules startingLives={pool?.starting_lives} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -187,6 +187,7 @@ export default function Home() {
                 <TeamPicker
                   player={currentPlayer}
                   weekNumber={currentWeek}
+                  startingLives={pool?.starting_lives}
                   onPickSubmit={handlePickSubmit}
                   onPickUpdate={loadData}
                 />

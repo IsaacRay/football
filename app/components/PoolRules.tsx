@@ -1,4 +1,10 @@
-export default function PoolRules() {
+import { DEFAULT_STARTING_LIVES } from '../lib/poolConfig';
+
+interface PoolRulesProps {
+  startingLives?: number;
+}
+
+export default function PoolRules({ startingLives = DEFAULT_STARTING_LIVES }: PoolRulesProps) {
   return (
     <div className="bg-gray-50 rounded-lg p-6 mb-8">
       <h2 className="text-2xl font-bold mb-4 text-gray-800">Pool Rules</h2>
@@ -13,7 +19,7 @@ export default function PoolRules() {
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">3.</span>
-          <p className="text-gray-700">Everyone starts with 3 lives</p>
+          <p className="text-gray-700">Everyone starts with {startingLives} lives</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">4.</span>
@@ -21,10 +27,17 @@ export default function PoolRules() {
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">5.</span>
-          <p className="text-gray-700">When you lose all 3 lives, you're eliminated</p>
+          <p className="text-gray-700">When you lose all {startingLives} lives, you&apos;re eliminated</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">6.</span>
+          <p className="text-gray-700">
+            A team locks when its own game kicks off - Sunday 1pm ET teams lock at 1pm,
+            later games lock at their own start time
+          </p>
+        </div>
+        <div className="flex items-start">
+          <span className="text-blue-500 font-bold mr-3">7.</span>
           <p className="text-gray-700">Last player(s) with lives remaining wins!</p>
         </div>
       </div>

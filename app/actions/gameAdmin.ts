@@ -2,6 +2,7 @@
 
 import { createClient } from '../utils/supabase/server';
 import { getUser, isAdmin } from '../lib/simpleAuth';
+import { recomputeSeason } from '../lib/scoreWeeks';
 
 export async function updateGameWinnerAdmin(gameId: string, winnerId: string | null) {
   const supabase = await createClient();
@@ -44,88 +45,24 @@ export async function updateGameWinnerAdmin(gameId: string, winnerId: string | n
     
     console.log('Game updated successfully:', data);
     
-    // Update all picks for this specific game when result is set
-    if (winnerId && data && data.length > 0) {
-      const game = data[0];
-      console.log('Updating picks for game:', game.id, 'winner:', winnerId);
-      
-      // Get all picks for this week for teams that played in this game
-      const { data: picks, error: picksError } = await supabase
-        .from('picks')
-        .select('*')
-        .eq('week_number', game.week_number)
-        .in('team_id', [game.away_team, game.home_team]);
-      
-      if (!picksError && picks) {
-        console.log('Found picks to update for this game:', picks.length);
-        
-        // Update each pick's is_correct status and player lives
-        for (const pick of picks) {
-          const isCorrect = pick.team_id === winnerId;
-          const wasCorrect = pick.is_correct;
-          
-          console.log(`Pick ${pick.id}: team ${pick.team_id}, winner ${winnerId}, was: ${wasCorrect}, now: ${isCorrect}`);
-          
-          // Update the pick
-          await supabase
-            .from('picks')
-            .update({ is_correct: isCorrect })
-            .eq('id', pick.id);
-          
-          // Update player lives if the result changed
-          if (wasCorrect !== isCorrect) {
-            if (isCorrect && wasCorrect === false) {
-              // Pick changed from wrong to correct - give life back
-              console.log(`Giving life back to player ${pick.player_id}`);
-              
-              // Get current lives first
-              const { data: playerData } = await supabase
-                .from('players')
-                .select('lives_remaining')
-                .eq('id', pick.player_id)
-                .single();
-              
-              if (playerData) {
-                const newLives = playerData.lives_remaining + 1;
-                await supabase
-                  .from('players')
-                  .update({ 
-                    lives_remaining: newLives,
-                    is_eliminated: false
-                  })
-                  .eq('id', pick.player_id);
-              }
-            } else if (!isCorrect && wasCorrect !== false) {
-              // Pick is now wrong (either from correct or null) - take life
-              console.log(`Taking life from player ${pick.player_id}`);
-              
-              // Get current lives to check if player should be eliminated
-              const { data: playerData } = await supabase
-                .from('players')
-                .select('lives_remaining')
-                .eq('id', pick.player_id)
-                .single();
-              
-              if (playerData) {
-                const newLives = Math.max(0, playerData.lives_remaining - 1);
-                await supabase
-                  .from('players')
-                  .update({ 
-                    lives_remaining: newLives,
-                    is_eliminated: newLives === 0
-                  })
-                  .eq('id', pick.player_id);
-              }
-            }
-          }
-        }
-        
-        console.log('Picks and player lives updated successfully');
-      } else {
-        console.error('Error fetching picks:', picksError);
-      }
+    // Lives and pick correctness are DERIVED, not adjusted. Rather than add or
+    // subtract a life here - which drifts as soon as the same game is edited
+    // twice, or the weekly job has already counted it - re-derive the season
+    // from the games table. This is the same code path the Tuesday job uses,
+    // so a manual correction and an automated one can never disagree.
+    //
+    // Clearing a winner recomputes too; the old incremental path ignored that
+    // case and left picks marked wrong for a game that no longer had a result.
+    const game = data?.[0];
+    if (game) {
+      const recompute = await recomputeSeason(supabase, game.season);
+      console.log(
+        `Recomputed season ${game.season}: ${recompute.picksUpdated.length} pick(s), ` +
+          `${recompute.playersUpdated.length} player(s)`
+      );
+      return { success: true, data, recompute };
     }
-    
+
     return { success: true, data };
   } catch (error) {
     console.error('Unexpected error:', error);

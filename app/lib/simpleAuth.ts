@@ -37,8 +37,14 @@ export async function logout() {
   cookieStore.delete('Auth');
 }
 
+// Admin access is a hardcoded allowlist - add an email here to grant it.
+const ADMIN_EMAILS = [
+  'isaacmray1984@gmail.com',
+];
+
 export function isAdmin(email: string | null): boolean {
-  return email === 'isaacmray1984@gmail.com';
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
 // Simple token storage for magic links - just random strings

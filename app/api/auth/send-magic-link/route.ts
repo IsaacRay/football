@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createMagicLinkToken } from '../../../lib/simpleAuth';
 
-const resend = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY);
+// Constructed lazily: Resend throws on an empty key, and building the app
+// shouldn't require one. Without a key this route logs the link instead (below).
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email with Resend
-    const { error: emailError } = await resend.emails.send({
+    const { error: emailError } = await getResend().emails.send({
       from: 'Football Pool <noreply@olneyacresfootball.com>',
       to: normalizedEmail,
       subject: 'Your login link for Football Pool',

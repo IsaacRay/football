@@ -1,5 +1,7 @@
 import { createClient } from '../utils/supabase/client';
 import { Database } from './supabase';
+import { getCurrentSeason } from './season';
+import { DEFAULT_STARTING_LIVES } from './poolConfig';
 
 export type Team = Database['public']['Tables']['teams']['Row'];
 export type Game = Database['public']['Tables']['games']['Row'];
@@ -24,7 +26,7 @@ export async function getAllTeams(): Promise<Team[]> {
 }
 
 // Games
-export async function getGamesByWeek(week: number, season = 2025): Promise<Game[]> {
+export async function getGamesByWeek(week: number, season = getCurrentSeason()): Promise<Game[]> {
   const { data, error } = await supabase
     .from('games')
     .select('*')
@@ -116,34 +118,74 @@ export async function getPicksByPlayer(playerId: string): Promise<Pick[]> {
   return data || [];
 }
 
-export async function submitPick(pick: Omit<Pick, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
-  const { error } = await supabase
-    .from('picks')
-    .insert(pick);
-  
-  if (error) {
-    return false;
+export interface PickResult {
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Re-checks kickoff before writing. A page left open across kickoff would
+ * otherwise submit a pick for a game already in progress.
+ */
+async function checkTeamStillPickable(
+  weekNumber: number,
+  teamId: string,
+  season = getCurrentSeason()
+): Promise<string | null> {
+  const kickoffs = await getWeekKickoffs(weekNumber, season);
+
+  if (!kickoffs.has(teamId)) {
+    return `${teamId.toUpperCase()} has no game in week ${weekNumber}.`;
   }
-  
-  return true;
+  if (isTeamLocked(kickoffs, teamId)) {
+    return `${teamId.toUpperCase()} is locked - their game has already started.`;
+  }
+  return null;
+}
+
+export async function submitPick(
+  pick: Omit<Pick, 'id' | 'created_at' | 'updated_at'>
+): Promise<PickResult> {
+  const blocked = await checkTeamStillPickable(pick.week_number, pick.team_id);
+  if (blocked) return { ok: false, message: blocked };
+
+  const { error } = await supabase.from('picks').insert(pick);
+
+  if (error) {
+    console.error('Error submitting pick:', error);
+    return { ok: false, message: error.message };
+  }
+
+  return { ok: true };
 }
 
 // Update existing pick
-export async function updatePick(playerId: string, weekNumber: number, teamId: string): Promise<boolean> {
+export async function updatePick(
+  playerId: string,
+  weekNumber: number,
+  teamId: string
+): Promise<PickResult> {
+  // Both the team being switched to and the one being switched away from must
+  // still be open - once your team is playing, the pick is final.
+  const blocked = await checkTeamStillPickable(weekNumber, teamId);
+  if (blocked) return { ok: false, message: blocked };
+
+  if (await isPickLocked(playerId, weekNumber)) {
+    return { ok: false, message: 'Your current pick is locked - that game has already started.' };
+  }
+
   const { error } = await supabase
     .from('picks')
-    .update({ 
-      team_id: teamId,
-      updated_at: new Date().toISOString()
-    })
+    .update({ team_id: teamId, updated_at: new Date().toISOString() })
     .eq('player_id', playerId)
     .eq('week_number', weekNumber);
-  
+
   if (error) {
-    return false;
+    console.error('Error updating pick:', error);
+    return { ok: false, message: error.message };
   }
-  
-  return true;
+
+  return { ok: true };
 }
 
 // Get existing pick for a player and week
@@ -162,29 +204,65 @@ export async function getExistingPick(playerId: string, weekNumber: number): Pro
   return data;
 }
 
-// Check if picks can still be edited (before first game of week starts)
-export async function canEditPicks(weekNumber: number, season = 2025): Promise<boolean> {
+// Kickoff time for every team playing in a given week, keyed by team id.
+// Teams on a bye simply aren't in the map.
+export async function getWeekKickoffs(
+  weekNumber: number,
+  season = getCurrentSeason()
+): Promise<Map<string, Date>> {
   const { data, error } = await supabase
     .from('games')
-    .select('game_time')
+    .select('home_team, away_team, game_time')
     .eq('season', season)
-    .eq('week_number', weekNumber)
-    .order('game_time')
-    .limit(1)
-    .single();
-  
+    .eq('week_number', weekNumber);
+
+  const kickoffs = new Map<string, Date>();
   if (error || !data) {
-    return false;
+    console.error('Error fetching kickoff times:', error);
+    return kickoffs;
   }
-  
-  const firstGameTime = new Date(data.game_time);
-  const now = new Date();
-  
-  return now < firstGameTime;
+
+  for (const game of data) {
+    const kickoff = new Date(game.game_time);
+    kickoffs.set(game.home_team, kickoff);
+    kickoffs.set(game.away_team, kickoff);
+  }
+  return kickoffs;
+}
+
+export { isTeamLocked, pickableTeams } from './pickRules';
+import { isTeamLocked, pickableTeams } from './pickRules';
+
+// Whether a player's existing pick is now locked in - i.e. that team has played
+// or is playing. Other teams may still be open for the same week.
+export async function isPickLocked(
+  playerId: string,
+  weekNumber: number,
+  season = getCurrentSeason()
+): Promise<boolean> {
+  const pick = await getExistingPick(playerId, weekNumber);
+  if (!pick) return false;
+
+  const kickoffs = await getWeekKickoffs(weekNumber, season);
+  return isTeamLocked(kickoffs, pick.team_id);
 }
 
 // Pools
-export async function getDefaultPool(): Promise<Pool | null> {
+export async function getDefaultPool(season = getCurrentSeason()): Promise<Pool | null> {
+  // Each season gets its own pool row, so scope to the one being played.
+  const scoped = await supabase
+    .from('pools')
+    .select('*')
+    .eq('season', season)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!scoped.error && scoped.data) return scoped.data;
+
+  // Falls through when pools.season hasn't been added yet (add_season_support.sql)
+  // or when this season has no pool of its own.
   const { data, error } = await supabase
     .from('pools')
     .select('*')
@@ -192,34 +270,41 @@ export async function getDefaultPool(): Promise<Pool | null> {
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
-  
+
   if (error) {
     console.error('Error fetching default pool:', error);
     throw new Error(`Failed to fetch default pool: ${error.message}`);
   }
-  
+
   return data;
 }
 
 // Note: createPlayerForCurrentUser has been removed - players are now created by admin via the admin panel
 
 // Available teams for a player (teams not yet used)
-export async function getAvailableTeams(playerId: string, excludeWeek?: number): Promise<Team[]> {
-  // Get all teams
+export async function getAvailableTeams(
+  playerId: string,
+  weekNumber?: number,
+  season = getCurrentSeason()
+): Promise<Team[]> {
   const allTeams = await getAllTeams();
-  
-  // Get player's picks
   const picks = await getPicksByPlayer(playerId);
-  
-  // Filter picks to exclude the specified week (for editing)
-  const filteredPicks = excludeWeek 
-    ? picks.filter(pick => pick.week_number !== excludeWeek)
-    : picks;
-  
-  const usedTeamIds = filteredPicks.map(pick => pick.team_id);
-  
-  // Filter out used teams
-  return allTeams.filter(team => !usedTeamIds.includes(team.id));
+
+  // The pick for the week being edited doesn't count against the player.
+  const usedTeamIds = new Set(
+    picks
+      .filter((pick) => pick.week_number !== weekNumber)
+      .map((pick) => pick.team_id)
+  );
+
+  // Without a week there is nothing to lock against - the admin pick tool uses
+  // this form deliberately so it can still set a pick after kickoff.
+  if (weekNumber === undefined) {
+    return allTeams.filter((team) => !usedTeamIds.has(team.id));
+  }
+
+  const kickoffs = await getWeekKickoffs(weekNumber, season);
+  return pickableTeams(allTeams, usedTeamIds, kickoffs);
 }
 
 // Get all picks for all players in a pool
@@ -273,15 +358,14 @@ export async function getPlayerWithPicksAndTeams(poolId: string): Promise<{
 }
 
 // Get current NFL week
-export async function getCurrentNFLWeek(): Promise<number> {
+export async function getCurrentNFLWeek(season = getCurrentSeason()): Promise<number> {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  
-  // Get games for current season to determine current week
+
+  // Get games for the season to determine current week
   const { data, error } = await supabase
     .from('games')
     .select('week_number, game_time')
-    .eq('season', currentYear)
+    .eq('season', season)
     .order('week_number')
     .order('game_time');
   

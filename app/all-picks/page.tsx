@@ -11,6 +11,7 @@ import {
   getCurrentNFLWeek
 } from '../lib/supabaseQueries';
 import type { Pool, Player, Pick, Team } from '../lib/supabaseQueries';
+import { DEFAULT_STARTING_LIVES } from '../lib/poolConfig';
 
 interface PlayerWithData {
   player: Player;
@@ -195,7 +196,7 @@ export default function AllPicksPage() {
                     <h3 className="text-xl font-bold text-gray-800">{player.display_name}</h3>
                     <div className="flex items-center space-x-4 mt-1">
                       <span className="text-sm text-gray-600">
-                        Lives: {[...Array(3)].map((_, i) => (
+                        Lives: {[...Array(Math.max(pool?.starting_lives ?? DEFAULT_STARTING_LIVES, player.lives_remaining))].map((_, i) => (
                           <span
                             key={i}
                             className={`ml-1 ${
