@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [playerPicks, setPlayerPicks] = useState<Pick[]>([]);
   const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [settling, setSettling] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -224,6 +225,43 @@ export default function AdminPage() {
     }
   };
 
+  // Settles the selected week: pulls final scores from ESPN, marks every pick,
+  // and re-derives lives. Same endpoint the weekly job hits, so pressing this
+  // early just gets the same answer sooner - it never double-counts.
+  const handleSettleWeek = async () => {
+    setSettling(true);
+    try {
+      const response = await fetch(`/api/admin/score-week?week=${selectedWeek}`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        alert(`Error settling week ${selectedWeek}: ${data.error ?? 'unknown error'}`);
+        return;
+      }
+
+      let message = `${data.message}\n`;
+      if (data.playersUpdated?.length) {
+        message += '\nLives changed:\n';
+        data.playersUpdated.forEach((p: any) => {
+          message += `- ${p.player}: ${p.livesFrom} -> ${p.livesTo}${p.eliminated ? ' (ELIMINATED)' : ''}\n`;
+        });
+      }
+      if (data.ties?.length) message += `\n${data.ties.join('\n')}\n`;
+      if (data.warnings?.length) message += `\nWarnings:\n${data.warnings.join('\n')}\n`;
+
+      alert(message);
+      await loadPoolAndPlayers();
+      await loadData(selectedWeek);
+    } catch (error) {
+      alert('Failed to settle week');
+      console.error('Settle week error:', error);
+    } finally {
+      setSettling(false);
+    }
+  };
+
   const getTeamName = (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     return team ? team.abbreviation : teamId.toUpperCase();
@@ -318,27 +356,51 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <button
-                onClick={handleSyncSchedule}
-                disabled={syncing}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                {syncing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Sync Schedule
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-gray-500 mt-1">Check for schedule changes</p>
+            <div className="flex gap-4">
+              <div>
+                <button
+                  onClick={handleSyncSchedule}
+                  disabled={syncing}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {syncing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Sync Schedule
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">Check for schedule changes</p>
+              </div>
+              <div>
+                <button
+                  onClick={handleSettleWeek}
+                  disabled={settling}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {settling ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Settling...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Settle Week {selectedWeek}
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-1">Score results from ESPN &amp; update lives</p>
+              </div>
             </div>
           </div>
         </div>
