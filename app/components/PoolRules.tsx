@@ -6,39 +6,39 @@ interface PoolRulesProps {
 
 export default function PoolRules({ startingLives = DEFAULT_STARTING_LIVES }: PoolRulesProps) {
   return (
-    <div className="bg-gray-50 rounded-lg p-6 mb-8">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">Pool Rules</h2>
+    <div className="bg-gray-50 rounded-lg p-4 sm:p-6 mb-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800">Pool Rules</h2>
       <div className="space-y-3">
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">1.</span>
-          <p className="text-gray-700">Each week, pick ONE team to win their game</p>
+          <p className="text-sm sm:text-base text-gray-700">Each week, pick ONE team to win their game</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">2.</span>
-          <p className="text-gray-700">You can only use each team ONCE during the entire season</p>
+          <p className="text-sm sm:text-base text-gray-700">You can only use each team ONCE during the entire season</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">3.</span>
-          <p className="text-gray-700">Everyone starts with {startingLives} lives</p>
+          <p className="text-sm sm:text-base text-gray-700">Everyone starts with {startingLives} lives</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">4.</span>
-          <p className="text-gray-700">If your team loses, you lose a life</p>
+          <p className="text-sm sm:text-base text-gray-700">If your team loses, you lose a life</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">5.</span>
-          <p className="text-gray-700">When you lose all {startingLives} lives, you&apos;re eliminated</p>
+          <p className="text-sm sm:text-base text-gray-700">When you lose all {startingLives} lives, you&apos;re eliminated</p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">6.</span>
-          <p className="text-gray-700">
+          <p className="text-sm sm:text-base text-gray-700">
             A team locks when its own game kicks off - Sunday 1pm ET teams lock at 1pm,
             later games lock at their own start time
           </p>
         </div>
         <div className="flex items-start">
           <span className="text-blue-500 font-bold mr-3">7.</span>
-          <p className="text-gray-700">Last player(s) with lives remaining wins!</p>
+          <p className="text-sm sm:text-base text-gray-700">Last player(s) with lives remaining wins!</p>
         </div>
       </div>
     </div>

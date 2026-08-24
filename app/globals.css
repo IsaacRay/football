@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Stop iOS inflating text when the phone is turned to landscape. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Safari zooms the whole page in when you focus a control whose text is under
+   16px. Force 16px on small screens so tapping a dropdown doesn't lurch. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

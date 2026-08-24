@@ -393,37 +393,37 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-100">
       <div className="bg-red-600 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold">Admin Panel</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Admin Panel</h1>
           <p className="mt-2 text-red-100">Manage Game Results, Users, and Picks</p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-md mb-8">
+        <div className="bg-white rounded-lg shadow-md mb-6 sm:mb-8">
           <div className="border-b">
-            <div className="flex">
+            <div className="flex overflow-x-auto">
               <button
                 onClick={() => setActiveTab('games')}
-                className={`px-6 py-3 font-medium ${activeTab === 'games' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+                className={`px-4 sm:px-6 py-3 font-medium text-sm sm:text-base whitespace-nowrap shrink-0 ${activeTab === 'games' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
               >
                 Game Results
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`px-6 py-3 font-medium ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+                className={`px-4 sm:px-6 py-3 font-medium text-sm sm:text-base whitespace-nowrap shrink-0 ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
               >
                 User Management
               </button>
               <button
                 onClick={() => setActiveTab('picks')}
-                className={`px-6 py-3 font-medium ${activeTab === 'picks' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+                className={`px-4 sm:px-6 py-3 font-medium text-sm sm:text-base whitespace-nowrap shrink-0 ${activeTab === 'picks' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
               >
                 Pick Management
               </button>
               <button
                 onClick={() => setActiveTab('season')}
-                className={`px-6 py-3 font-medium ${activeTab === 'season' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+                className={`px-4 sm:px-6 py-3 font-medium text-sm sm:text-base whitespace-nowrap shrink-0 ${activeTab === 'season' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
               >
                 Season
               </button>
@@ -435,14 +435,14 @@ export default function AdminPage() {
         {activeTab === 'games' && (
           <>
             {/* Week selector */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold mb-4">Select Week</h2>
+              <h2 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4">Select Week</h2>
               <select
                 value={selectedWeek}
                 onChange={(e) => handleWeekChange(Number(e.target.value))}
-                className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full lg:max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
                   <option key={week} value={week}>
@@ -451,12 +451,12 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
-            <div className="flex gap-4">
-              <div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1">
                 <button
                   onClick={handleSyncSchedule}
                   disabled={syncing}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {syncing ? (
                     <>
@@ -474,11 +474,11 @@ export default function AdminPage() {
                 </button>
                 <p className="text-xs text-gray-500 mt-1">Check for schedule changes</p>
               </div>
-              <div>
+              <div className="flex-1">
                 <button
                   onClick={handleSettleWeek}
                   disabled={settling}
-                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {settling ? (
                     <>
@@ -502,23 +502,23 @@ export default function AdminPage() {
 
             {/* Games list */}
             <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-bold">Week {selectedWeek} Games</h2>
+          <div className="p-4 sm:p-6 border-b">
+            <h2 className="text-lg sm:text-xl font-bold">Week {selectedWeek} Games</h2>
             <p className="text-gray-600 mt-1">Select the winner for each completed game</p>
           </div>
           
           <div className="divide-y divide-gray-200">
             {games.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
+              <div className="p-4 sm:p-6 text-center text-gray-500">
                 No games found for Week {selectedWeek}
               </div>
             ) : (
               games.map((game) => (
-                <div key={game.id} className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4">
-                        <div className="text-lg font-medium">
+                <div key={game.id} className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <div className="text-base sm:text-lg font-medium">
                           {getTeamName(game.away_team)} @ {getTeamName(game.home_team)}
                         </div>
                         <div className="text-sm text-gray-500">
@@ -532,12 +532,12 @@ export default function AdminPage() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-3 shrink-0">
                       <select
                         value={game.winner || ''}
                         onChange={(e) => handleGameWinnerUpdate(game.id, e.target.value || null)}
                         disabled={saving === game.id}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                       >
                         <option value="">Select Winner</option>
                         <option value={game.away_team}>{getTeamName(game.away_team)} (Away)</option>
@@ -560,13 +560,13 @@ export default function AdminPage() {
         {/* User Management Tab */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">User Management</h2>
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-bold">User Management</h2>
               <p className="text-gray-600 mt-1">Create new users and manage existing players</p>
             </div>
             
             {/* Create User Form */}
-            <div className="p-6 border-b">
+            <div className="p-4 sm:p-6 border-b">
               <h3 className="text-lg font-semibold mb-4">Create New User</h3>
               <div className="space-y-4">
                 <div>
@@ -598,7 +598,7 @@ export default function AdminPage() {
                 <button
                   onClick={handleCreateUser}
                   disabled={creatingUser || !newUserEmail}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   {creatingUser ? 'Creating...' : 'Create User'}
                 </button>
@@ -606,16 +606,16 @@ export default function AdminPage() {
             </div>
             
             {/* Existing Players List */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Existing Players</h3>
               <div className="space-y-2">
                 {players.length === 0 ? (
                   <p className="text-gray-500">No players in the pool</p>
                 ) : (
                   players.map((player) => (
-                    <div key={player.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{player.display_name}</div>
+                    <div key={player.id} className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-lg">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{player.display_name}</div>
                         <div className="text-sm text-gray-500">Lives: {player.lives_remaining}</div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -644,14 +644,14 @@ export default function AdminPage() {
 
         {activeTab === 'season' && (
           <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">Season Management</h2>
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-bold">Season Management</h2>
               <p className="text-gray-600 mt-1">
                 Current pool: {pool ? `${pool.name} (${pool.starting_lives} lives)` : 'none'}
               </p>
             </div>
 
-            <div className="p-6 border-b">
+            <div className="p-4 sm:p-6 border-b">
               <h3 className="text-lg font-semibold mb-4">Start a New Season</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Creates a fresh pool, carries over the players you tick at full lives, and
@@ -659,14 +659,14 @@ export default function AdminPage() {
                 left unticked simply doesn&apos;t join the new season.
               </p>
 
-              <div className="flex gap-4 mb-6">
+              <div className="flex flex-wrap gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Season</label>
                   <input
                     type="number"
                     value={newSeasonYear}
                     onChange={(e) => setNewSeasonYear(Number(e.target.value))}
-                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -678,13 +678,13 @@ export default function AdminPage() {
                     min={1}
                     value={newSeasonLives}
                     onChange={(e) => setNewSeasonLives(Number(e.target.value))}
-                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <label className="block text-sm font-medium text-gray-700">
                     Carry over players ({carryOver.size} of {players.length})
                   </label>
@@ -717,7 +717,7 @@ export default function AdminPage() {
                           type="checkbox"
                           checked={carryOver.has(player.id)}
                           onChange={() => toggleCarryOver(player.id)}
-                          className="h-4 w-4"
+                          className="h-5 w-5 shrink-0"
                         />
                         <span className="font-medium">{player.display_name}</span>
                         {player.is_eliminated && (
@@ -732,13 +732,13 @@ export default function AdminPage() {
               <button
                 onClick={handleStartNewSeason}
                 disabled={startingSeason}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
                 {startingSeason ? 'Starting...' : `Start ${newSeasonYear} Season`}
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-2">After starting a season</h3>
               <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
                 <li>Load the schedule with Sync Schedule on the Game Results tab.</li>
@@ -755,13 +755,13 @@ export default function AdminPage() {
         {/* Pick Management Tab */}
         {activeTab === 'picks' && (
           <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">Pick Management</h2>
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-bold">Pick Management</h2>
               <p className="text-gray-600 mt-1">Add picks for players</p>
             </div>
             
             {/* Add Pick Form */}
-            <div className="p-6 border-b">
+            <div className="p-4 sm:p-6 border-b">
               <h3 className="text-lg font-semibold mb-4">Add Pick</h3>
               <div className="space-y-4">
                 <div>
@@ -822,7 +822,7 @@ export default function AdminPage() {
                 <button
                   onClick={handleAddPick}
                   disabled={addingPick || !selectedPlayer || !selectedPickTeam}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   {addingPick ? 'Adding...' : 'Add Pick'}
                 </button>
@@ -830,7 +830,7 @@ export default function AdminPage() {
             </div>
             
             {/* Player Picks History */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">Player Picks History</h3>
               {selectedPlayer && (
                 <div className="space-y-2">
@@ -840,7 +840,7 @@ export default function AdminPage() {
                     playerPicks.map((pick) => {
                       const team = teams.find(t => t.id === pick.team_id);
                       return (
-                        <div key={pick.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div key={pick.id} className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-lg">
                           <div>
                             <div className="font-medium">Week {pick.week_number}</div>
                             <div className="text-sm text-gray-500">

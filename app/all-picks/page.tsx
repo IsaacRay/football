@@ -123,14 +123,14 @@ export default function AllPicksPage() {
     <main className="min-h-screen bg-gray-100">
       <Navigation />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">All Players Picks</h1>
-          <p className="text-gray-600">View all player picks, remaining teams, and elimination status</p>
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">All Players Picks</h1>
+          <p className="text-sm sm:text-base text-gray-600">View all player picks, remaining teams, and elimination status</p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
           <h2 className="text-lg font-semibold mb-4">Filters</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -190,12 +190,12 @@ export default function AllPicksPage() {
           {filteredPlayers.map(({ player, picks, usedTeamIds, availableTeamIds }) => (
             <div key={player.id} className="bg-white rounded-lg shadow-md overflow-hidden">
               {/* Player Header */}
-              <div className={`px-6 py-4 ${player.is_eliminated ? 'bg-red-50' : 'bg-green-50'}`}>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{player.display_name}</h3>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-sm text-gray-600">
+              <div className={`px-4 sm:px-6 py-4 ${player.is_eliminated ? 'bg-red-50' : 'bg-green-50'}`}>
+                <div className="flex flex-wrap justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{player.display_name}</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
                         Lives: {[...Array(Math.max(pool?.starting_lives ?? DEFAULT_STARTING_LIVES, player.lives_remaining))].map((_, i) => (
                           <span
                             key={i}

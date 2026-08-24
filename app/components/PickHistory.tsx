@@ -42,8 +42,8 @@ export default function PickHistory({ player }: PickHistoryProps) {
 
   if (loading) {
     return (
-      <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold mb-4">Your Pick History</h2>
+      <div className="mt-8 sm:mt-12 bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-bold mb-4">Your Pick History</h2>
         <div className="animate-pulse">
           <div className="h-4 bg-gray-200 rounded mb-2"></div>
           <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -54,18 +54,21 @@ export default function PickHistory({ player }: PickHistoryProps) {
   }
 
   return (
-    <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-bold mb-4">Your Pick History</h2>
+    <div className="mt-8 sm:mt-12 bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h2 className="text-lg sm:text-xl font-bold mb-4">Your Pick History</h2>
       <div className="space-y-2">
         {picks.length === 0 ? (
           <p className="text-gray-500">No picks made yet</p>
         ) : (
           picks.map((pick) => (
-            <div key={pick.id} className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-700">Week {pick.week_number}</span>
-              <span className="font-medium">{getTeamName(pick.team_id)}</span>
+            <div
+              key={pick.id}
+              className="flex items-center justify-between gap-2 py-2 border-b text-sm sm:text-base"
+            >
+              <span className="text-gray-700 w-20 shrink-0">Week {pick.week_number}</span>
+              <span className="font-medium flex-1 min-w-0 truncate">{getTeamName(pick.team_id)}</span>
               <span
-                className={`px-2 py-1 rounded text-sm ${
+                className={`px-2 py-1 rounded text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                   pick.is_correct === null
                     ? 'bg-gray-100 text-gray-600'
                     : pick.is_correct
@@ -73,11 +76,7 @@ export default function PickHistory({ player }: PickHistoryProps) {
                     : 'bg-red-100 text-red-700'
                 }`}
               >
-                {pick.is_correct === null
-                  ? 'Pending'
-                  : pick.is_correct
-                  ? 'Won'
-                  : 'Lost (-1 life)'}
+                {pick.is_correct === null ? 'Pending' : pick.is_correct ? 'Won' : 'Lost'}
               </span>
             </div>
           ))

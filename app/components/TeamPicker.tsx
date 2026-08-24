@@ -115,11 +115,11 @@ export default function TeamPicker({
   const lives = (
     <div className="mb-4">
       <p className="text-gray-600 mb-2">Lives Remaining: {player.lives_remaining}</p>
-      <div className="flex space-x-1">
+      <div className="flex flex-wrap gap-1">
         {[...Array(Math.max(startingLives, player.lives_remaining))].map((_, i) => (
           <span
             key={i}
-            className={`text-2xl ${i < player.lives_remaining ? 'text-orange-600' : 'text-gray-300'}`}
+            className={`text-xl sm:text-2xl ${i < player.lives_remaining ? 'text-orange-600' : 'text-gray-300'}`}
           >
             🏈
           </span>
@@ -130,7 +130,7 @@ export default function TeamPicker({
 
   if (player.is_eliminated) {
     return (
-      <div className="bg-red-50 rounded-lg p-6 text-center">
+      <div className="bg-red-50 rounded-lg p-4 sm:p-6 text-center">
         <p className="text-red-800 font-medium">You have been eliminated from the pool.</p>
         <p className="text-red-600 text-sm mt-2">Better luck next season!</p>
       </div>
@@ -140,8 +140,8 @@ export default function TeamPicker({
   // Locked only once THIS pick's game has started - other teams may still be open.
   if (existingPick && locked) {
     return (
-      <div className="bg-gray-50 rounded-lg shadow-md p-6">
-        <h3 className="text-xl font-bold mb-4">Week {weekNumber} Pick (Locked)</h3>
+      <div className="bg-gray-50 rounded-lg shadow-md p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-bold mb-4">Week {weekNumber} Pick (Locked)</h3>
         {lives}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-blue-800 font-medium">Your pick: {teamLabel(existingPick.team_id)}</p>
@@ -156,8 +156,8 @@ export default function TeamPicker({
   const nothingLeft = !loading && availableTeams.length === 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-xl font-bold mb-4">
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h3 className="text-lg sm:text-xl font-bold mb-4">
         {existingPick ? `Edit Your Week ${weekNumber} Pick` : `Make Your Week ${weekNumber} Pick`}
       </h3>
       {lives}

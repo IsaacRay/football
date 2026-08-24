@@ -174,16 +174,16 @@ export default function Home() {
     <main className="min-h-screen bg-gray-100">
       <Navigation />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
           <PoolRules startingLives={pool?.starting_lives} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          <div className="lg:col-span-2 space-y-6 lg:space-y-8">
             {currentPlayer ? (
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-800">Your Week {currentWeek} Pick</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800">Your Week {currentWeek} Pick</h2>
                 <TeamPicker
                   player={currentPlayer}
                   weekNumber={currentWeek}
@@ -193,7 +193,7 @@ export default function Home() {
                 />
               </div>
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6">
                 <p className="text-yellow-800">Setting up your player profile...</p>
               </div>
             )}

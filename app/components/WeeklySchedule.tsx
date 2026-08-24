@@ -26,18 +26,18 @@ export default function WeeklySchedule({ games, weekNumber }: WeeklyScheduleProp
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-xl font-bold mb-4">Week {weekNumber} Schedule</h3>
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h3 className="text-lg sm:text-xl font-bold mb-4">Week {weekNumber} Schedule</h3>
       <div className="space-y-3">
         {games.map(game => (
           <div
             key={game.id}
-            className={`border rounded-lg p-4 ${
+            className={`border rounded-lg p-3 sm:p-4 ${
               game.is_complete ? 'bg-gray-50' : 'bg-white'
             }`}
           >
-            <div className="flex justify-between items-center">
-              <div className="flex-1">
+            <div className="flex justify-between items-center gap-3">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2">
                   <span
                     className={`font-medium ${
@@ -64,11 +64,11 @@ export default function WeeklySchedule({ games, weekNumber }: WeeklyScheduleProp
                   )}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 {game.is_complete ? (
-                  <span className="text-sm text-gray-500">Final</span>
+                  <span className="text-xs sm:text-sm text-gray-500">Final</span>
                 ) : (
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
                     {new Date(game.game_time).toLocaleDateString('en-US', {
                       weekday: 'short',
                       hour: 'numeric',
