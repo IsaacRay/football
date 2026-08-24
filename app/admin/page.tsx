@@ -9,6 +9,8 @@ import type { Game, Team, Player, Pool, Pick } from '../lib/supabaseQueries';
 import { createClient } from '../utils/supabase/client';
 import { createUser } from '../actions/admin';
 import { updateGameWinnerAdmin } from '../actions/gameAdmin';
+import { startNewSeason, removePlayer, getPlayerRemovalImpact } from '../actions/seasonAdmin';
+import { getCurrentSeason } from '../lib/season';
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -18,7 +20,7 @@ export default function AdminPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'games' | 'users' | 'picks'>('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'users' | 'picks' | 'season'>('games');
   const [pool, setPool] = useState<Pool | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -32,6 +34,11 @@ export default function AdminPage() {
   const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [settling, setSettling] = useState(false);
+  const [newSeasonYear, setNewSeasonYear] = useState(getCurrentSeason());
+  const [newSeasonLives, setNewSeasonLives] = useState(4);
+  const [carryOver, setCarryOver] = useState<Set<string>>(new Set());
+  const [startingSeason, setStartingSeason] = useState(false);
+  const [removingPlayer, setRemovingPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -262,6 +269,88 @@ export default function AdminPage() {
     }
   };
 
+  const toggleCarryOver = (playerId: string) => {
+    setCarryOver((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) {
+        next.delete(playerId);
+      } else {
+        next.add(playerId);
+      }
+      return next;
+    });
+  };
+
+  const handleStartNewSeason = async () => {
+    const carried = Array.from(carryOver);
+    const dropped = players.length - carried.length;
+
+    const confirmed = confirm(
+      `Start the ${newSeasonYear} season?\n\n` +
+        `- Creates a new pool at ${newSeasonLives} lives each\n` +
+        `- Carries over ${carried.length} player(s)` +
+        (dropped > 0 ? `, leaving out ${dropped}\n` : '\n') +
+        `- Retires the current pool\n\n` +
+        `Last season's picks and results are kept.`
+    );
+    if (!confirmed) return;
+
+    setStartingSeason(true);
+    try {
+      const result = await startNewSeason({
+        season: newSeasonYear,
+        startingLives: newSeasonLives,
+        carryOverPlayerIds: carried,
+      });
+
+      let message = result.message ?? '';
+      if (result.warnings?.length) message += `\n\nWarnings:\n${result.warnings.join('\n')}`;
+      alert(message);
+
+      if (result.success) {
+        setCarryOver(new Set());
+        await loadPoolAndPlayers();
+        await loadData(1);
+      }
+    } catch (error) {
+      alert('Failed to start the new season');
+      console.error('Start season error:', error);
+    } finally {
+      setStartingSeason(false);
+    }
+  };
+
+  const handleRemovePlayer = async (playerId: string, displayName: string) => {
+    setRemovingPlayer(playerId);
+    try {
+      // Show what will actually be lost before asking.
+      const impact = await getPlayerRemovalImpact(playerId);
+      if (!impact.success) {
+        alert(impact.message ?? 'Could not look up that player');
+        return;
+      }
+
+      const picks = impact.pickCount ?? 0;
+      const confirmed = confirm(
+        `Remove ${displayName} from this season's pool?\n\n` +
+          (picks > 0
+            ? `This also deletes their ${picks} pick(s) for this season - they will disappear from the All Picks page. `
+            : 'They have no picks this season. ') +
+          `Earlier seasons are not affected.\n\nThis cannot be undone.`
+      );
+      if (!confirmed) return;
+
+      const result = await removePlayer(playerId);
+      alert(result.message ?? (result.success ? 'Removed' : 'Failed to remove player'));
+      if (result.success) await loadPoolAndPlayers();
+    } catch (error) {
+      alert('Failed to remove player');
+      console.error('Remove player error:', error);
+    } finally {
+      setRemovingPlayer(null);
+    }
+  };
+
   const getTeamName = (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     return team ? team.abbreviation : teamId.toUpperCase();
@@ -331,6 +420,12 @@ export default function AdminPage() {
                 className={`px-6 py-3 font-medium ${activeTab === 'picks' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
               >
                 Pick Management
+              </button>
+              <button
+                onClick={() => setActiveTab('season')}
+                className={`px-6 py-3 font-medium ${activeTab === 'season' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-800'}`}
+              >
+                Season
               </button>
             </div>
           </div>
@@ -523,17 +618,136 @@ export default function AdminPage() {
                         <div className="font-medium">{player.display_name}</div>
                         <div className="text-sm text-gray-500">Lives: {player.lives_remaining}</div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {player.is_eliminated ? (
-                          <span className="text-red-600 font-medium">Eliminated</span>
-                        ) : (
-                          <span className="text-green-600 font-medium">Active</span>
-                        )}
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm text-gray-500">
+                          {player.is_eliminated ? (
+                            <span className="text-red-600 font-medium">Eliminated</span>
+                          ) : (
+                            <span className="text-green-600 font-medium">Active</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRemovePlayer(player.id, player.display_name)}
+                          disabled={removingPlayer === player.id}
+                          className="text-sm text-red-600 hover:text-red-800 disabled:text-gray-400 font-medium"
+                        >
+                          {removingPlayer === player.id ? 'Removing...' : 'Remove'}
+                        </button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'season' && (
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="p-6 border-b">
+              <h2 className="text-xl font-bold">Season Management</h2>
+              <p className="text-gray-600 mt-1">
+                Current pool: {pool ? `${pool.name} (${pool.starting_lives} lives)` : 'none'}
+              </p>
+            </div>
+
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold mb-4">Start a New Season</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Creates a fresh pool, carries over the players you tick at full lives, and
+                retires the current pool. Last season&apos;s picks and results are kept - anyone
+                left unticked simply doesn&apos;t join the new season.
+              </p>
+
+              <div className="flex gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Season</label>
+                  <input
+                    type="number"
+                    value={newSeasonYear}
+                    onChange={(e) => setNewSeasonYear(Number(e.target.value))}
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Starting lives
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newSeasonLives}
+                    onChange={(e) => setNewSeasonLives(Number(e.target.value))}
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Carry over players ({carryOver.size} of {players.length})
+                  </label>
+                  <div className="space-x-3 text-sm">
+                    <button
+                      onClick={() => setCarryOver(new Set(players.map((p) => p.id)))}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      onClick={() => setCarryOver(new Set())}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {players.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No players in the current pool.</p>
+                ) : (
+                  <div className="space-y-1 max-h-72 overflow-y-auto border rounded-lg p-3">
+                    {players.map((player) => (
+                      <label
+                        key={player.id}
+                        className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={carryOver.has(player.id)}
+                          onChange={() => toggleCarryOver(player.id)}
+                          className="h-4 w-4"
+                        />
+                        <span className="font-medium">{player.display_name}</span>
+                        {player.is_eliminated && (
+                          <span className="text-xs text-red-600">(eliminated last season)</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleStartNewSeason}
+                disabled={startingSeason}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                {startingSeason ? 'Starting...' : `Start ${newSeasonYear} Season`}
+              </button>
+            </div>
+
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">After starting a season</h3>
+              <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                <li>Load the schedule with Sync Schedule on the Game Results tab.</li>
+                <li>Add anyone new on the User Management tab.</li>
+                <li>Results and lives update themselves each week from ESPN.</li>
+              </ol>
+              <p className="text-xs text-gray-500 mt-3">
+                Requires add_season_support.sql to have been run once.
+              </p>
             </div>
           </div>
         )}
