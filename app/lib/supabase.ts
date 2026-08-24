@@ -72,6 +72,7 @@ export type Database = {
           pool_id: string;
           user_id: string;
           display_name: string;
+          email: string | null;
           lives_remaining: number;
           is_eliminated: boolean;
           joined_at: string;
@@ -81,6 +82,7 @@ export type Database = {
           pool_id: string;
           user_id: string;
           display_name: string;
+          email?: string | null;
           lives_remaining?: number;
           is_eliminated?: boolean;
           joined_at?: string;
@@ -90,6 +92,7 @@ export type Database = {
           pool_id?: string;
           user_id?: string;
           display_name?: string;
+          email?: string | null;
           lives_remaining?: number;
           is_eliminated?: boolean;
           joined_at?: string;

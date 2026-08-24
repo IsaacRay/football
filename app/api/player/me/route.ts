@@ -5,39 +5,53 @@ import { createClient } from '../../../utils/supabase/server';
 export async function GET() {
   try {
     const user = await getUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const supabase = await createClient();
-    
-    // Get default pool
-    const { data: defaultPool } = await supabase
+
+    const { data: pool } = await supabase
       .from('pools')
       .select('*')
       .eq('is_active', true)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!defaultPool) {
+    if (!pool) {
       return NextResponse.json({ error: 'No active pool found' }, { status: 404 });
     }
 
-    // Find player by display_name matching email prefix (cookie-based auth only)
-    const displayName = user.email.split('@')[0];
-    const { data: player, error } = await supabase
+    // Match on the player's email address.
+    const byEmail = await supabase
       .from('players')
       .select('*')
-      .eq('pool_id', defaultPool.id)
-      .eq('display_name', displayName)
-      .single();
+      .eq('pool_id', pool.id)
+      .eq('email', user.email)
+      .maybeSingle();
 
-    if (error || !player) {
-      // No player exists for this user - they might need to be added manually by admin
-      return NextResponse.json({ error: 'No player record found for this user' }, { status: 404 });
+    if (byEmail.data) {
+      return NextResponse.json(byEmail.data);
     }
 
-    return NextResponse.json(player);
+    // Fallback for players added before emails were stored (and for databases
+    // where add_player_email.sql hasn't been run): the old rule matched
+    // display_name against the part of the email before the "@".
+    const prefix = user.email.split('@')[0];
+    const { data: legacy } = await supabase
+      .from('players')
+      .select('*')
+      .eq('pool_id', pool.id)
+      .eq('display_name', prefix)
+      .maybeSingle();
+
+    if (legacy) {
+      return NextResponse.json(legacy);
+    }
+
+    return NextResponse.json({ error: 'No player record found for this user' }, { status: 404 });
   } catch (error) {
     console.error('Error getting player:', error);
     return NextResponse.json({ error: 'Failed to get player data' }, { status: 500 });

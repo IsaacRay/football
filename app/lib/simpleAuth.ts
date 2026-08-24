@@ -48,10 +48,16 @@ export function isAdmin(email: string | null): boolean {
 }
 
 // Simple token storage for magic links - just random strings
-export async function createMagicLinkToken(email: string): Promise<string> {
+export const LOGIN_TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
+export const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export async function createMagicLinkToken(
+  email: string,
+  ttlMs: number = LOGIN_TOKEN_TTL_MS
+): Promise<string> {
   // Generate a random token - just random characters
   const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const expiresAt = new Date(Date.now() + ttlMs);
 
   const supabase = await createClient();
   const { data, error } = await supabase

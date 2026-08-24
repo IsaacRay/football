@@ -117,7 +117,7 @@ export async function createSeason(
   if (carryOverPlayerIds.length > 0) {
     const { data: sourcePlayers, error: sourceError } = await supabase
       .from('players')
-      .select('display_name, user_id')
+      .select('display_name, user_id, email')
       .in('id', carryOverPlayerIds);
 
     if (sourceError) {
@@ -128,6 +128,9 @@ export async function createSeason(
           pool_id: created.id,
           user_id: p.user_id,
           display_name: p.display_name,
+          // Carries the login link across, so returning players don't need a
+          // fresh invite.
+          email: p.email ?? null,
           lives_remaining: startingLives,
           is_eliminated: false,
         })),

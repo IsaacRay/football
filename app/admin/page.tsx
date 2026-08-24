@@ -7,7 +7,7 @@ import { getCurrentNFLWeek } from '../lib/weekCalculator';
 import { getGamesByWeek, getAllTeams, getPlayersByPool, getDefaultPool, getPicksByPlayer, submitPick, updatePick, getExistingPick, getAvailableTeams } from '../lib/supabaseQueries';
 import type { Game, Team, Player, Pool, Pick } from '../lib/supabaseQueries';
 import { createClient } from '../utils/supabase/client';
-import { createUser } from '../actions/admin';
+import { createUser, sendInvite, setPlayerEmail } from '../actions/admin';
 import { updateGameWinnerAdmin } from '../actions/gameAdmin';
 import { startNewSeason, removePlayer, getPlayerRemovalImpact } from '../actions/seasonAdmin';
 import { getCurrentSeason } from '../lib/season';
@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [carryOver, setCarryOver] = useState<Set<string>>(new Set());
   const [startingSeason, setStartingSeason] = useState(false);
   const [removingPlayer, setRemovingPlayer] = useState<string | null>(null);
+  const [invitingPlayer, setInvitingPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -351,6 +352,28 @@ export default function AdminPage() {
     }
   };
 
+  const handleSendInvite = async (playerId: string) => {
+    setInvitingPlayer(playerId);
+    try {
+      const result = await sendInvite(playerId);
+      alert(result.message ?? (result.success ? 'Invite sent' : 'Failed to send invite'));
+    } catch (error) {
+      alert('Failed to send invite');
+      console.error('Invite error:', error);
+    } finally {
+      setInvitingPlayer(null);
+    }
+  };
+
+  const handleSetEmail = async (playerId: string, current: string | null, name: string) => {
+    const entered = prompt(`Email address for ${name}:`, current ?? '');
+    if (entered === null) return;
+
+    const result = await setPlayerEmail(playerId, entered);
+    alert(result.message ?? (result.success ? 'Saved' : 'Failed to save email'));
+    if (result.success) await loadPoolAndPlayers();
+  };
+
   const getTeamName = (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     return team ? team.abbreviation : teamId.toUpperCase();
@@ -562,7 +585,7 @@ export default function AdminPage() {
           <div className="bg-white rounded-lg shadow-md">
             <div className="p-4 sm:p-6 border-b">
               <h2 className="text-lg sm:text-xl font-bold">User Management</h2>
-              <p className="text-gray-600 mt-1">Create new users and manage existing players</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Add players by email, then send them a sign-in link</p>
             </div>
             
             {/* Create User Form */}
@@ -613,19 +636,41 @@ export default function AdminPage() {
                   <p className="text-gray-500">No players in the pool</p>
                 ) : (
                   players.map((player) => (
-                    <div key={player.id} className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-lg">
+                    <div key={player.id} className="flex flex-wrap items-center justify-between gap-3 p-3 border rounded-lg">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{player.display_name}</div>
+                        <div className="text-sm text-gray-500 truncate">
+                          {player.email ? (
+                            player.email
+                          ) : (
+                            <span className="text-amber-700">no email - can&apos;t sign in</span>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-500">Lives: {player.lives_remaining}</div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="text-sm">
                           {player.is_eliminated ? (
                             <span className="text-red-600 font-medium">Eliminated</span>
                           ) : (
                             <span className="text-green-600 font-medium">Active</span>
                           )}
                         </div>
+                        {player.email && (
+                          <button
+                            onClick={() => handleSendInvite(player.id)}
+                            disabled={invitingPlayer === player.id}
+                            className="text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg font-medium"
+                          >
+                            {invitingPlayer === player.id ? 'Sending...' : 'Send Invite'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleSetEmail(player.id, player.email, player.display_name)}
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          {player.email ? 'Edit email' : 'Set email'}
+                        </button>
                         <button
                           onClick={() => handleRemovePlayer(player.id, player.display_name)}
                           disabled={removingPlayer === player.id}
