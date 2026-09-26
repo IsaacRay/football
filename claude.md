@@ -77,8 +77,8 @@
 
   Key Functionality
 
-  - Weekly scoring job (app/api/admin/score-week/route.ts:1). No auth; intended
-    to run every Tuesday morning, but safe to call at any time:
+  - Scoring job (app/api/admin/score-week/route.ts:1). No auth; a Vercel cron
+    (vercel.json) runs it daily at 10:00 UTC, and it is safe to call at any time:
     * Pulls final scores from ESPN's public scoreboard (no API key)
     * Sets each game's winner and score, marks every pick right or wrong
     * Recomputes remaining lives, including the penalty for missed picks

@@ -11,7 +11,7 @@ export const maxDuration = 60;
  * Settles finished weeks: pulls final scores from ESPN, sets each game's winner,
  * marks every pick right or wrong, and recomputes remaining lives.
  *
- * Intended to run once a week after Monday night football, but it is safe to
+ * Run daily at 10:00 UTC by the Vercel cron in vercel.json, and it is safe to
  * call at any time and as often as you like - lives are recomputed from the
  * full season's results rather than incremented, so repeat runs are no-ops.
  *

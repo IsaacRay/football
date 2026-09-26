@@ -369,13 +369,18 @@ async function recomputeFromGames(
     if (pick.is_correct === desired) continue;
 
     if (!dryRun) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('picks')
         .update({ is_correct: desired, updated_at: new Date().toISOString() })
-        .eq('id', pick.id);
+        .eq('id', pick.id)
+        .select('id');
 
       if (error) {
         warnings.push(`Failed to update pick ${pick.id}: ${error.message}`);
+        continue;
+      }
+      if (!data?.length) {
+        warnings.push(`Pick ${pick.id} was not saved: ${RLS_HINT('picks')}`);
         continue;
       }
     }
@@ -428,13 +433,18 @@ async function recomputeFromGames(
     if (lives === player.lives_remaining && eliminated === player.is_eliminated) continue;
 
     if (!dryRun) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('players')
         .update({ lives_remaining: lives, is_eliminated: eliminated })
-        .eq('id', player.id);
+        .eq('id', player.id)
+        .select('id');
 
       if (error) {
         warnings.push(`Failed to update ${player.display_name}: ${error.message}`);
+        continue;
+      }
+      if (!data?.length) {
+        warnings.push(`Lives for ${player.display_name} were not saved: ${RLS_HINT('players')}`);
         continue;
       }
     }
@@ -453,6 +463,15 @@ async function recomputeFromGames(
     playersUpdated,
   };
 }
+
+/**
+ * Under row level security an UPDATE the caller isn't allowed to make returns
+ * no error - it just matches zero rows. Without checking, the job would report
+ * lives as changed while the database kept the old values.
+ */
+const RLS_HINT = (table: string) =>
+  `the update matched no rows, which usually means row level security is blocking writes to ${table}. ` +
+  `Run fix_${table}_rls.sql or set SUPABASE_SERVICE_ROLE_KEY.`;
 
 async function loadSeasonGames(supabase: DbClient, season: number): Promise<GameRow[]> {
   const { data, error } = await supabase
