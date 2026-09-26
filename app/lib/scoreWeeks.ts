@@ -518,7 +518,29 @@ async function loadSeasonPools(
     .select('id, name, starting_lives, season')
     .eq('season', season);
 
-  if (!error) return (data ?? []) as PoolRow[];
+  if (!error && data?.length) return data as PoolRow[];
+
+  if (!error) {
+    // No pool is tagged with this season. The UI (getDefaultPool) falls back to
+    // the active pool in that case, so the leaderboard is showing it - score the
+    // same pool, or Settle Week would silently leave the visible lives alone.
+    const { data: active, error: activeError } = await supabase
+      .from('pools')
+      .select('id, name, starting_lives, season')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (activeError) throw new Error(`Failed to load pools: ${activeError.message}`);
+    if (active?.length) {
+      warnings.push(
+        `No pool is tagged season ${season}; scored the active pool "${active[0].name}" ` +
+          `(tagged ${active[0].season ?? 'no season'}) instead. ` +
+          `Fix with: UPDATE pools SET season = ${season} WHERE id = '${active[0].id}';`
+      );
+    }
+    return (active ?? []) as PoolRow[];
+  }
 
   if (!isMissingColumnError(error)) {
     throw new Error(`Failed to load pools: ${error.message}`);
