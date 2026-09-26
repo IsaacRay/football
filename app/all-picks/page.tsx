@@ -197,15 +197,18 @@ export default function AllPicksPage() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                       <span className="text-sm text-gray-600 whitespace-nowrap">
                         Lives: {[...Array(Math.max(pool?.starting_lives ?? DEFAULT_STARTING_LIVES, player.lives_remaining))].map((_, i) => (
+                          // Text colour doesn't tint an emoji, so a lost life is
+                          // faded with grayscale + opacity instead.
                           <span
                             key={i}
-                            className={`ml-1 ${
-                              i < player.lives_remaining ? 'text-orange-600' : 'text-gray-300'
-                            }`}
+                            className={`ml-1 ${i < player.lives_remaining ? '' : 'grayscale opacity-25'}`}
                           >
                             🏈
                           </span>
                         ))}
+                        <span className="ml-2 font-medium">
+                          {player.lives_remaining}/{pool?.starting_lives ?? DEFAULT_STARTING_LIVES}
+                        </span>
                       </span>
                       <span
                         className={`px-2 py-1 rounded-full text-sm font-medium ${
